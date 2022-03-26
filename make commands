@@ -1,8 +1,0 @@
-aclocal &&\
-autoconf &&\
-automake --add-missing &&\
-./configure &&\
-make
-
-
-make mostlyclean clean distclean
