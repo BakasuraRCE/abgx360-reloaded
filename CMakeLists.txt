@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.21)
-project(abgx360)
+set(target abgx360)
+project(${target})
 
 set(CMAKE_C_STANDARD 23)
 
-find_package(CURL REQUIRED)
+find_package(CURL CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
 include_directories(src)
 
 # Add executable
-add_executable(abgx360
+add_executable(${target}
         src/abgx360.c
         src/rijndael-alg-fst.c
         src/rijndael-alg-fst.h
@@ -20,6 +21,6 @@ add_executable(abgx360
         src/mspack/mspack.h
         src/mspack/system.c
         src/mspack/system.h)
-target_link_libraries(abgx360 m)
-target_link_libraries(abgx360 CURL::libcurl)
-target_link_libraries(abgx360 ZLIB::ZLIB)
+target_link_libraries(${target} PRIVATE m)
+target_link_libraries(${target} PRIVATE CURL::libcurl)
+target_link_libraries(${target} PRIVATE ZLIB::ZLIB)
