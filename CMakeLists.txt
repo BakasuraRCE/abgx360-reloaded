@@ -24,6 +24,8 @@ add_executable(${target}
         src/mspack/mspack.h
         src/mspack/system.c
         src/mspack/system.h)
-target_link_libraries(${target} PRIVATE m)
+if(UNIX)
+        target_link_libraries(${target} PRIVATE m)
+endif()
 target_link_libraries(${target} PRIVATE CURL::libcurl)
 target_link_libraries(${target} PRIVATE ZLIB::ZLIB)
