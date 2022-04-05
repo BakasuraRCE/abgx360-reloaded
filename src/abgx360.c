@@ -10111,7 +10111,7 @@ void checkdat() {
         if (lldatfilesize > WOW_THATS_A_LOT_OF_RAM || lldatfilesize < 200) return;  // should never be this big or small
         unsigned long datfilesize = (unsigned long) lldatfilesize;  // should easily fit - this helps for comparison to unsigned long offsets
         if (debug) printf("datfilesize = %lu%s", datfilesize, newline);
-        unsigned char *datfilebuffer = calloc(sizeof(unsigned char) * datfilesize); // unsigned char datfilebuffer[datfilesize];
+        unsigned char *datfilebuffer = calloc(datfilesize, sizeof(unsigned char)); // unsigned char datfilebuffer[datfilesize];
         memset(datfilebuffer, 0, datfilesize);
         initcheckread();
         if (checkreadandprinterrors(datfilebuffer, 1, datfilesize, datfile, 0, 0, "abgx360.dat", "Checking abgx360.dat") != 0) return;
