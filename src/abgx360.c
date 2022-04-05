@@ -67,6 +67,8 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 //#define DAE_SEARCH_DID  1
 //#define DAE_SEARCH_TID  2
 
+#include "global.h"
+
 #include <stdio.h>     // standard i/o
 #include <stddef.h>    // for offsetof
 #include <stdbool.h>   // true/false macro for bools
@@ -107,18 +109,6 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
     ULONG	Filler;								// realign buffer to double word boundary
     UCHAR	ucSenseBuf[32];	// buf for returned sense data
     } SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, *PSCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
-
-    char winbuffer[2048];
-    HANDLE hDevice = INVALID_HANDLE_VALUE;
-    #define mkdir(a,b) _mkdir(a)
-    //#define strcasecmp(a,b) _stricmp(a,b)
-    //#define strncasecmp(a,b,c) _strnicmp(a,b,c)
-    //#define fseeko(a,b,c) myfseeko64(a,b,c)
-    //#define ftello(a) ftello64(a)
-    #define DATA_NONE SCSI_IOCTL_DATA_UNSPECIFIED
-    #define DATA_IN   SCSI_IOCTL_DATA_IN
-    #define DATA_OUT  SCSI_IOCTL_DATA_OUT
-    #define LL "I64"
 #else
     #define LL "ll"
     #include <zlib.h>
@@ -185,158 +175,6 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 
 #endif  // ifdef WIN32
 
-#define BIGBUF_SIZE 32768  // 32 KB, changing this could cause some problems
-
-#define NUM_CURRENTPFIENTRIES   15  // update this when adding new pfi entries
-#define NUM_CURRENTVIDEOENTRIES 21 // update this when adding new video entries
-
-#define NUM_CURRENTAP25MEDIAIDS       25  // update this when adding new AP25 media ids for discs that have no AP25 flag in the default.xex
-#define NUM_CURRENTAP25TITLEIDS        2  // update this when adding new AP25 title ids for discs that have no AP25 flag in the default.xex
-#define NUM_CURRENTAP25DISCPROFILEIDS 11  // update this when adding new AP25 disc profile ids
-//#define NUM_CURRENTDAEVERSIONS        5   // update this when adding new DAE versions and descriptions
-
-#define TOPOLOGY_SIZE 26624
-
-// update version values here
-char *headerversion = "v1.0.7";
-char *curluseragent = "abgx360 v1.0.7 (\"ABGX360_OS\")";
-unsigned long currentversion = 0x010007L;  // MSB (1.2.3 = 0x010203)
-
-// this will be replaced with the value from abgx360.dat if it exists
-unsigned long latestversion = 0L;
-
-// update this value before release (unrecognized pfi/video on a game authored before this date is labeled almost
-// certainly corrupt, otherwise it might be a brand new wave)
-// this will be replaced with the value from abgx360.dat if it exists
-unsigned long long lastknownwave = 0x01CC6C27EBA6C000LL;  // 2011-09-06
-
-// update this value if additional stealth sectors are needed in our ISOs so that older versions
-// of abgx360 will not blank them out if fixing video padding is enabled (works for XGD2 or XGD3)
-// this will be replaced with the value from abgx360.dat if it exists
-unsigned long number_of_stealth_sectors = 16L;  // increase if needed, never decrease (13 sectors for topology data plus 1 sector each for PFI, DMI, SS)
-
-// update this value if stealth sectors or data ever needs to be placed in the 16 sectors between an XGD3 SS and the game partition
-// xgd3_stealth_padding_bitfield is 16 bits, one for each of the 16 sectors
-// a bit value of 1 indicates a padding sector, 0 indicates a data sector
-// Example: 0x7EFE = 0111111011111110 means that only sectors 2-7 and 9-15 will be checked for blank padding if check/fix padding is enabled
-// all bits are currently set to 1 (1111111111111111 = 0xFFFF) which means that all 16 sectors will be checked for blank padding
-// this will be replaced with the value from abgx360.dat if it exists
-unsigned short xgd3_stealth_padding_bitfield = 0xFFFF;
-
-// local directories
-char homedir[2048];
-#ifdef WIN32
-    char *abgxdir =        "\\abgx360\\";
-    char *stealthdir =     "StealthFiles\\";
-    char *userstealthdir = "UserStealthFiles\\";
-    char *imagedir =       "Images\\";
-#else
-    char *abgxdir =        "/.abgx360/";
-    char *stealthdir =     "StealthFiles/";
-    char *userstealthdir = "UserStealthFiles/";
-    char *imagedir =       "Images/";
-#endif
-
-// load replacements from abgx360.ini if it exists (make sure to update checkini() if these addresses are changed)
-char *webinidir =            "http://abgx360.hadzz.com/verified/";                       // dir that contains verified ini files
-char *webunverifiedinidir =  "http://abgx360.hadzz.com/unverified/";                     // dir that contains unverified ini files
-char *webcsv =               "http://abgx360.hadzz.com/GameNameLookup.csv";              // http path to GameNameLookup.csv
-char *webdat =               "http://abgx360.hadzz.com/abgx360.dat";                     // http path to abgx360.dat
-char *webtopology =          "http://abgx360.hadzz.com/topology.php";                    // http path to topology.php
-char *webstealthdir =        "http://abgx360.hadzz.com/StealthFiles/";                   // dir that contains SS/DMI/PFI/Video stealth files
-char *autouploadwebaddress = "http://abgx360.hadzz.com/Control/AutoUpload.php";          // form for submitting AutoUploads
-
-//char *ap25autouploadwebaddress = "http://abgx360.net/Apps/Control/AP25AutoUpload.php";  // form for submitting AP25 AutoUploads
-//char *webdae = "http://abgx360.net/Apps/Stealth360/dae.bin";                            // http path to dae.bin
-
-struct waveentry {unsigned long crc; uchar sha1[20]; char *description; bool hosted;};
-struct waveentry currentpfientries[NUM_CURRENTPFIENTRIES];
-struct waveentry *mostrecentpfientries;
-struct waveentry *datfilepfientries;
-unsigned long num_pfientries;
-struct waveentry currentvideoentries[NUM_CURRENTVIDEOENTRIES];
-struct waveentry *mostrecentvideoentries;
-struct waveentry *datfilevideoentries;
-unsigned long num_videoentries;
-unsigned long xbox1pficrc;
-uchar xbox1pfisha1[20];
-unsigned long xbox1videocrc;
-uchar xbox1videosha1[20];
-
-struct mediaidshort {unsigned char mediaid[4];};
-struct mediaidshort currentap25mediaids[NUM_CURRENTAP25MEDIAIDS];
-struct mediaidshort *mostrecentap25mediaids;
-struct mediaidshort *datfileap25mediaids;
-unsigned long num_ap25mediaids;
-
-struct mediaidshort currentap25titleids[NUM_CURRENTAP25TITLEIDS];
-struct mediaidshort *mostrecentap25titleids;
-struct mediaidshort *datfileap25titleids;
-unsigned long num_ap25titleids;
-
-struct mediaidshort currentap25discprofileids[NUM_CURRENTAP25DISCPROFILEIDS];
-struct mediaidshort *mostrecentap25discprofileids;
-struct mediaidshort *datfileap25discprofileids;
-unsigned long num_ap25discprofileids;
-
-//struct flagverdescription {unsigned char flags; unsigned short version; char *description;};
-//struct flagverdescription currentdaeversions[NUM_CURRENTDAEVERSIONS];
-//struct flagverdescription *mostrecentdaeversions;
-//struct flagverdescription *datfiledaeversions;
-//unsigned long num_daeversions;
-
-int mediumangledev_value = 3, highangledev_value = 9, fixangledev_value = 3;
-
-bool verbose = true, stealthcheck = true, autofix = true, autofixuncertain = true, verify = true, onlineupdate = true, csvupdate = false;
-bool checkdvdfile = true, checkpadding = false, padL0 = false, fixdeviation = true, fixDRT = true, increasescreenbuffersize = true;
-bool autofixalways = false, autoupload = false, keeporiginaliso = false, dontparsefs = false;
-bool extraverbose = false, debug = false, debugfs = false;
-bool noheader = false, justheader = false, justfooter = false;
-bool minimal = false, html = false, stripcolors = false, script = false, justhelp = false;
-bool terminal = false, stayoffline = false, showsstable = false;
-bool pauseshell = false, maximize = false, showfiles = false;
-bool fixangle359 = false, showfulltable = false;
-bool homeless = false, makedatfile = false;
-bool patchvalidfilesonly = true, patchifstealthpasses = false, manualpatch = false, manualextract = false;
-bool rebuildlowspace = false, norebuild = false, truncatefile = false, checkcorruption = false, foldermode = false;
-bool matchonly = false, testing = false, testingdvd = false;
-bool localonly = false, recursesubdirs = false, clobber = false;
-bool showachievements = false, hidesecretachievements = false, showavatarawards = false, unicode = false, imagedirmissing = false;
-bool skiplayerboundaryinfo = false, devkey = false, trustssv2angles = true, useinstalldir = false;
-struct badshit {unsigned char c[21], d[21], data[21]; int count; char* explanation;};
-char unrecognizedRTarray[21];
-// don't forget to add new args to the list before stat()
-int truncatearg = 0, userregionarg = 0, folderarg = 0, matcharg = 0, specialarg = 0, readretryarg = 0;
-int patchvideoarg = 0, patchpfiarg = 0, patchdmiarg = 0, patchssarg = 0;
-int extractvideoarg = 0, extractpfiarg = 0, extractdmiarg = 0, extractssarg = 0;
-int autouploaduserarg = 0, autouploadpassarg = 0, fixangledevarg = 0, connectiontimeoutarg = 0, dvdtimeoutarg = 0;
-int dvdarg = 0, userlangarg = 0, origarg = 0, speedarg = 0;
-//int riparg = 0, ripdestarg = 0;
-long connectiontimeout = 20, dvdtimeout = 20, userlang = 0;
-float speed = 0.0;
-unsigned long curlprogressstartmsecs, userregion = 0L;
-char *green = "\033[1;32;40m", *yellow = "\033[1;33;40m", *red = "\033[1;31;40m", *cyan = "\033[1;36;40m", *blue = "\033[1;34;40m";
-char *darkblue = "\033[0;34;40m", *white = "\033[1;37;40m", *arrow = "\033[1;34;40m", *box = "\033[1;34;40m", *normal = "\033[0;37;40m";
-char *wtfhexcolor = "\033[1;31;40m", *wtfcharcolor = "\033[1;37;41m", *reset = "\033[0m", *brown = "\033[0;33;40m", *filename = "\033[0;37;44m";
-char *blackonyellow = "\033[0;30;43m", *blackonred = "\033[0;30;41m";
-#ifdef __APPLE__
-    char *hexoffsetcolor = "\033[0;37;40m", *darkgray = "\033[0;37;40m";  // can't do dark gray apparently (shows completely black) so just use normal gray
-#else
-    char *hexoffsetcolor = "\033[1;30;40m", *darkgray = "\033[1;30;40m";
-#endif
-char *newline = "\n", *quotation = "\"", *ampersand = "&", *lessthan = "<", *greaterthan = ">", *numbersign = "#";
-char *sp0 = "\0", *sp1 = " ", *sp2 = "  ", *sp3 = "   ", *sp4 = "    ", *sp5 = "     ";
-char *sp6 = "      ", *sp7 = "       ", *sp8 = "        ", *sp9 = "         ";
-char *sp10 = "          ", *sp11 = "           ", *sp12 = "            ", *sp18 = "                  ";
-char *sp20 = "                    ", *sp21 = "                     ", *sp28 = "                            ";
-char buffer[2048], buffer2[2048];
-char inifilename[24], xexinifilename[17], gamename[151];
-char sense[20], specialerror[200];
-char installdirvideofilepath[2048] = {0};
-unsigned char ubuffer[2048], ss[2048], fixed_ss[2048], cdb[12];
-unsigned char bigbuffer[BIGBUF_SIZE];
-unsigned long filecount = 0L;
-unsigned long seek;
 unsigned long getuint(unsigned char* ptr), getuintmsb(unsigned char* ptr), getint(char* ptr);
 #ifdef WIN32
     LARGE_INTEGER longLongToLargeInt(long long i);
@@ -363,7 +201,7 @@ static uchar videosha1[3][20] =
 unsigned char dmi_mediaid[16], ss_mediaid[16], xex_mediaid[16], xex_discprofileid[16], titleid[4];
 unsigned long pfi_sectorstotal, pfi_sectorsL0, pfi_sectorsL1;
 unsigned long long pfi_offsetL1, pfi_offsetL0end;
-void printhtmltop(int argc, char *argv[]), printhtmlbottom(), printheader(), color(char *color), printwtfhexcolor(), printwtfcharcolor();
+void printhtmltop(int argc, char *argv[]), printhtmlbottom(), printheader(), color(const char *color), printwtfhexcolor(), printwtfcharcolor();
 void printwin32filetime(unsigned long long win32filetime), printmediaid(unsigned char* mediaid), hexdump(unsigned char* ptr, int stealthtype, int bytes);
 void checkvideo(char *isofilename, FILE *stream, bool justavideoiso, bool checkvideopadding), checkdmi(unsigned char *dmi), checkpfi(unsigned char *pfi);
 //void checkap25(char *argv[]);
@@ -374,14 +212,6 @@ int checkss(), doautofix(), doverify(), checkgame();
 unsigned long getzeros(unsigned char* ptr, unsigned long firstbyte, unsigned long lastbyte);
 bool lookslikepfi(unsigned char* pfi), lookslike360dmi(unsigned char* dmi), lookslikexbox1dmi(unsigned char* dmi);
 bool lookslike360ss(unsigned char* ss), lookslikexbox1ss(unsigned char* ss);
-unsigned long fix_ss_crc32;
-long long fpfilesize;
-int isofilearg, readretries = 20, charsprinted;
-unsigned long readerrorstotal, readerrorsrecovered, writeerrorstotal, writeerrorsrecovered;
-int readerrorcharsprinted;
-int returnvalue;
-long longreturnvalue;
-unsigned long sizeoverbuffer, bufferremainder;
 int checkreadandprinterrors(void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset, char *name, char *action);
 int checkwriteandprinterrors(const void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset, char *name, char *action);
 void initcheckread(), donecheckread(char *name);
@@ -406,7 +236,6 @@ unsigned char regioncode[4];
 char *readstdin(char *dest, int size);
 void checkdat(), makedat();
 int dotruncate(char *filename, long long filesize, long long truncatesize, bool stfu);
-char *isofilename = NULL;
 void checkini();
 unsigned long long corruptionoffset[100];
 bool unverifiediniexists();
@@ -1990,7 +1819,7 @@ LARGE_INTEGER longLongToLargeInt(long long i) {
     return li;
 }
 
-void WinError(char *action, char *textcolor) { 
+void WinError(const char *action, const char *textcolor) { 
     // retrieve the system error message for the last error code and print it with the function name in the desired color
     LPVOID lpMsgBuf;
     DWORD dw = GetLastError(); 
@@ -2340,435 +2169,6 @@ int sendcdb(int direction, unsigned char *dataBuffer, unsigned long dataBufferSi
 #endif  // #if defined(__linux__)
 
 #endif  // #ifdef WIN32
-
-int opendeviceandgetname(char *drive, bool requestexclusiveaccess, bool errorsareok) {
-    int i, j, n;
-    char devicenamebuffer[64] = {0};
-    #ifdef WIN32
-        // drive should have already been validated as a drive letter A-Z (or a-z)
-        char stringforwinerror[26 + strlen(drive)];
-        char rootpath[strlen(drive) + 3];
-        char pathforcreatefile[strlen(drive) + 6];
-        sprintf(rootpath, "%s:\\", drive);
-        sprintf(pathforcreatefile, "\\\\.\\%s:", drive);
-        char *drivetypelist[7] = {
-            "The drive type cannot be determined.",
-            "The root path is invalid; for example, there is no volume mounted at the path.",
-            "The drive has removable media; for example, a floppy drive, thumb drive, or flash card reader.",
-            "The drive has fixed media; for example, a hard drive or flash drive.",
-            "The drive is a remote (network) drive.",
-            "The drive is a CD-ROM drive.",
-            "The drive is a RAM disk."
-        };
-        // check the drive type
-        unsigned int drivetype = GetDriveType(rootpath);
-        if (drivetype != DRIVE_CDROM) {
-            if (errorsareok) color(yellow);
-            else color(red);
-            printf("ERROR: %s is not recognized as a multimedia drive!", rootpath);
-            if (drivetype < 7 && drivetype != 5) printf(" (%s)", drivetypelist[drivetype]);
-            printf("%s", newline);
-            color(normal);
-            if (debug) printf("GetDriveType(%s) = %d%s", rootpath, GetDriveType(rootpath), newline);
-          return 1;
-        }
-        // open the device
-        if (requestexclusiveaccess)
-             hDevice = CreateFile(pathforcreatefile,
-                                  GENERIC_READ | GENERIC_WRITE,
-                                  0,
-                                  NULL, OPEN_EXISTING, 0, NULL);
-        else hDevice = CreateFile(pathforcreatefile,
-                                  GENERIC_READ | GENERIC_WRITE,
-                                  FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                  NULL, OPEN_EXISTING, 0, NULL);
-        if (hDevice == INVALID_HANDLE_VALUE) {
-            sprintf(stringforwinerror, "CreateFile for drive (%s:)", drive);
-            if (errorsareok) WinError(stringforwinerror, yellow);
-            else WinError(stringforwinerror, red);
-            if (debug) printf("drive: %s, rootpath: %s, pathforcreatefile: %s%s", drive, rootpath, pathforcreatefile, newline);
-          return 1;
-        }
-    #else
-        // open the device
-        #if defined(__FreeBSD__)
-            cam_dev = cam_open_device(drive, O_RDWR);
-            if (cam_dev != NULL && cam_dev->fd != -1) fd = cam_dev->fd;
-            else {
-                if (errorsareok) color(yellow);
-                else color(red);
-                if (debug) {
-                    if (cam_dev == NULL) printf("cam_dev == NULL%s", newline);
-                    else if (cam_dev->fd == -1) printf("cam_dev->fd == -1%s", newline);
-                }
-                printf("ERROR: Failed to open device (O_RDWR): %s (%s)%s", drive, strerror(errno), newline);
-                color(normal);
-              return 1;
-            }
-            if (requestexclusiveaccess) {
-                // todo: make sure this is valid and works on FreeBSD
-                struct flock fl;
-                fl.l_type   = F_WRLCK;  // type of lock: F_RDLCK, F_WRLCK, F_UNLCK
-                fl.l_whence = SEEK_SET; // how to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END
-                fl.l_start  = 0;        // starting offset for lock from l_whence
-                fl.l_len    = 0;        // number of bytes to lock, 0 = to EOF
-                fl.l_pid    = getpid(); // lock owner
-                if (fcntl(fd, F_SETLK, &fl) == -1) {
-                    if (errorsareok) color(yellow);
-                    else color(red);
-                    printf("ERROR: Failed to open device for exclusive access: %s (%s)%s", drive, strerror(errno), newline);
-                    color(normal);
-                    close(fd);
-                  return 1;
-                }
-            }
-        #else
-            if (requestexclusiveaccess) {
-                // don't think this is actually exclusive but Ubuntu 8.10 VM (didn't try any others) will not let me open using O_RDWR on /dev/cdrom
-                // (errno says read-only filesystem) so i can't use F_WRLCK (exclusive) on a file that is not open for writing
-                struct flock fl;
-                fl.l_type   = F_RDLCK;  // type of lock: F_RDLCK, F_WRLCK, F_UNLCK
-                fl.l_whence = SEEK_SET; // how to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END
-                fl.l_start  = 0;        // starting offset for lock from l_whence
-                fl.l_len    = 0;        // number of bytes to lock, 0 = to EOF
-                fl.l_pid    = getpid(); // lock owner
-                fd = open(drive, O_RDONLY);
-                if (fd == -1) {
-                    if (errorsareok) color(yellow);
-                    else color(red);
-                    printf("ERROR: Failed to open device: %s (%s)%s", drive, strerror(errno), newline);
-                    color(normal);
-                  return 1;
-                }
-                if (fcntl(fd, F_SETLK, &fl) == -1) {
-                    if (errorsareok) color(yellow);
-                    else color(red);
-                    printf("ERROR: Failed to open device for exclusive access: %s (%s)%s", drive, strerror(errno), newline);
-                    color(normal);
-                    close(fd);
-                  return 1;
-                }
-            }
-            else {
-                fd = open(drive, O_RDONLY);
-                if (fd == -1) {
-                    if (errorsareok) color(yellow);
-                    else color(red);
-                    printf("ERROR: Failed to open device: %s (%s)%s", drive, strerror(errno), newline);
-                    color(normal);
-                  return 1;
-                }
-            }
-        #endif
-    #endif
-    
-    // get the device name
-    unsigned char inqbuffer[96] = {0};
-    memset(cdb, 0, 12);
-    cdb[0] = 0x12;  // INQUIRY command
-    cdb[4] = 0x60;  // allocation length LSB (0x0060 = 96) - maximum number of bytes that may be returned by the drive
-    
-    if (sendcdb(DATA_IN, inqbuffer, 96, cdb, 12, false)) {  // false means it won't check that number of bytes returned == 96
-        for (i=0;i<readretries;i++) {
-            if (sendcdb(DATA_IN, inqbuffer, 96, cdb, 12, false) == 0) {
-                // recovered error
-                goto inquiryrecovered;
-            }
-        }
-        // unrecovered error
-        color(yellow);
-        #ifdef WIN32
-            printf("Failed to get device parameters from drive %s: (%s)%s", drive, cdberror(sense), newline);
-        #else
-            printf("Failed to get device parameters from %s (%s)%s", drive, cdberror(sense), newline);
-        #endif
-        color(normal);
-    }
-    else {
-        inquiryrecovered:
-        if (debug || testingdvd) {
-            printf("inquiry buffer:%s", newline);
-            hexdump(inqbuffer, 0, 96);
-        }
-        #ifndef WIN32
-            // check the device type
-            unsigned char peripheraldevicetype = inqbuffer[0] & 0x1F;
-            if (peripheraldevicetype != 0x05) {
-                if (errorsareok) color(yellow);
-                else color(red);
-                printf("ERROR: %s is not recognized as a multimedia device!", drive);
-                if      (peripheraldevicetype == 0x00) printf(" (It's a direct-access block device; for example, magnetic disk.)");
-                else if (peripheraldevicetype == 0x01) printf(" (It's a sequential-access device; for example, magnetic tape.)");
-                else if (peripheraldevicetype == 0x02) printf(" (It's a printer device.)");
-                else if (peripheraldevicetype == 0x03) printf(" (It's a processor device.)");
-                else if (peripheraldevicetype == 0x04) printf(" (It's a write-once device; for example, some optical disks.)");
-                else if (peripheraldevicetype == 0x06) printf(" (It's a scanner device.)");
-                else if (peripheraldevicetype == 0x07) printf(" (It's an optical memory device; for example, some optical disks.)");
-                else if (peripheraldevicetype == 0x08) printf(" (It's a medium changer device; for example, a jukebox.)");
-                else if (peripheraldevicetype == 0x09) printf(" (It's a communications device.)");
-                else if (peripheraldevicetype == 0x0A || peripheraldevicetype == 0x0B) printf(" (It's an obsolete device type.)");
-                else if (peripheraldevicetype == 0x0C) printf(" (It's a storage array controller device; for example, RAID.)");
-                else if (peripheraldevicetype == 0x0D) printf(" (It's an enclosure services device.)");
-                else if (peripheraldevicetype == 0x0E) printf(" (It's a simplified direct-access device; for example, magnetic disk.)");
-                else if (peripheraldevicetype == 0x0F) printf(" (It's an optical card reader/writer device.)");
-                else if (peripheraldevicetype == 0x10) printf(" (It's a bridge controller.)");
-                else if (peripheraldevicetype == 0x11) printf(" (It's an object-based storage device.)");
-                else if (peripheraldevicetype == 0x12) printf(" (It's an automation/drive interface.)");
-                else if (peripheraldevicetype >= 0x13 && peripheraldevicetype <= 0x1E) printf(" (It's a reserved device type.)");
-                else if (peripheraldevicetype == 0x1F) printf(" (It's an unknown device type.)");
-                printf("%s", newline);
-                color(normal);
-              return 1;
-            }
-        #endif
-        i = 0;
-        // vendor id 8-15
-        for (j=8;j<16;j++) {
-            if (inqbuffer[j] > 0x1F) {
-                devicenamebuffer[i] = inqbuffer[j];
-                i++;
-            }
-        }
-        if (i > 0) for (n=i-1;n>=0;n--) {
-            if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-            else break;
-        }
-        devicenamebuffer[i] = 0x20;
-        i++;
-        // product id 16-31
-        for (j=16;j<32;j++) {
-            if (inqbuffer[j] > 0x1F) {
-                devicenamebuffer[i] = inqbuffer[j];
-                i++;
-            }
-        }
-        if (i > 0) for (n=i-1;n>=0;n--) {
-            if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-            else break;
-        }
-        devicenamebuffer[i] = 0x20;
-        i++;
-        // revision level 32-35
-        for (j=32;j<36;j++) {
-            if (inqbuffer[j] > 0x1F) {
-                devicenamebuffer[i] = inqbuffer[j];
-                i++;
-            }
-        }
-        if (i > 0) for (n=i-1;n>=0;n--) {
-            if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-            else break;
-        }
-        devicenamebuffer[i] = 0x20;
-        i++;
-        // vendor specific additional info 36-55
-        if (isanxbox360rippingdrive(devicenamebuffer, false)) {
-            if (memcmp(devicenamebuffer, "PLDS DG-16D2S ", 14) == 0) {
-                // get more data for fw and hardware version (i.e. PLDS DG-16D2S 74850C A0A1)
-                i--;
-                for (j=36;j<42;j++) {
-                    if (j == 38) {
-                        devicenamebuffer[i] = 0x20;
-                        i++;
-                    }
-                    if (inqbuffer[j] > 0x1F) {
-                        devicenamebuffer[i] = inqbuffer[j];
-                        i++;
-                    }
-                }
-                if (i > 0) for (n=i-1;n>=0;n--) {
-                    if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-                    else break;
-                }
-                devicenamebuffer[i] = 0x20;
-                i++;
-            }
-            else if (memcmp(devicenamebuffer, "SATA DVD-ROM 6243 ", 18) == 0) {
-                // get more data for fw version (i.e. SATA DVD-ROM 62430C)
-                i--;
-                for (j=36;j<40;j++) {
-                    if (inqbuffer[j] > 0x1F) {
-                        devicenamebuffer[i] = inqbuffer[j];
-                        i++;
-                    }
-                }
-                if (i > 0) for (n=i-1;n>=0;n--) {
-                    if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-                    else break;
-                }
-                devicenamebuffer[i] = 0x20;
-                i++;
-            }
-            // try to get ixtreme version info
-            unsigned char ixbuffer[0x30] = {0};
-            memset(cdb, 0, 12);
-            cdb[0] = 0x12;
-            cdb[4] = 0x24;
-            cdb[9] = 0x49;
-            cdb[10] = 0x58;
-            cdb[11] = 0x01;
-            if (sendcdb(DATA_IN, ixbuffer, 0x30, cdb, 12, false)) {  // false means it won't check that number of bytes returned == 96
-                for (i=0;i<readretries;i++) {
-                    if (sendcdb(DATA_IN, ixbuffer, 0x30, cdb, 12, false) == 0) {
-                        // recovered error
-                        goto ixrecovered;
-                    }
-                }
-                // unrecovered error
-                if (debug || testingdvd) {
-                    #ifdef WIN32
-                        printf("DG-16D2S/VAD6038/TS-H943A failed to do ix01 cmd for drive %s: (%s)%s", drive, cdberror(sense), newline);
-                    #else
-                        printf("DG-16D2S/VAD6038/TS-H943A failed to do ix01 cmd for %s (%s)%s", drive, cdberror(sense), newline);
-                    #endif
-                }
-            }
-            else {
-                ixrecovered:
-                if (debug || testingdvd) {
-                    printf("ix buffer:%s", newline);
-                    hexdump(ixbuffer, 0, 0x30);
-                }
-                if (html) {
-                    devicenamebuffer[i]   = '&';
-                    devicenamebuffer[i+1] = 'l';
-                    devicenamebuffer[i+2] = 't';
-                    devicenamebuffer[i+3] = ';';
-                    i += 4;
-                }
-                else {
-                    devicenamebuffer[i] = '<';
-                    i++;
-                }
-                for (j=16;j<48;j++) {
-                    if (ixbuffer[j] > 0x1F) {
-                        devicenamebuffer[i] = ixbuffer[j];
-                        i++;
-                    }
-                }
-                if (i > 0) for (n=i-1;n>=0;n--) {
-                    if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-                    else break;
-                }
-                if (html) {
-                    devicenamebuffer[i]   = '&';
-                    devicenamebuffer[i+1] = 'g';
-                    devicenamebuffer[i+2] = 't';
-                    devicenamebuffer[i+3] = ';';
-                    i += 4;
-                }
-                else {
-                    devicenamebuffer[i] = '>';
-                    i++;
-                }
-            }
-        }
-        else {
-            if (html) {
-                devicenamebuffer[i]   = '&';
-                devicenamebuffer[i+1] = 'l';
-                devicenamebuffer[i+2] = 't';
-                devicenamebuffer[i+3] = ';';
-                i += 4;
-            }
-            else {
-                devicenamebuffer[i] = '<';
-                i++;
-            }
-            for (j=36;j<56;j++) {
-                if (inqbuffer[j] > 0x1F) {
-                    devicenamebuffer[i] = inqbuffer[j];
-                    i++;
-                }
-            }
-            if (i > 0) for (n=i-1;n>=0;n--) {
-                if (devicenamebuffer[n] == 0x20) i--;  // backspace over trailing spaces
-                else break;
-            }
-            if (html) {
-                devicenamebuffer[i]   = '&';
-                devicenamebuffer[i+1] = 'g';
-                devicenamebuffer[i+2] = 't';
-                devicenamebuffer[i+3] = ';';
-                i += 4;
-            }
-            else {
-                devicenamebuffer[i] = '>';
-                i++;
-            }
-        }
-        
-        #ifdef WIN32
-            // get bus type
-            ULONG returnedbytes;
-            STORAGE_PROPERTY_QUERY query;
-            PSTORAGE_ADAPTER_DESCRIPTOR adapterDesc;
-            UCHAR outBuf[1024];
-            memset(outBuf, 0, 1024);
-            query.PropertyId = StorageAdapterProperty;
-            query.QueryType = PropertyStandardQuery;
-            if (DeviceIoControl(hDevice, IOCTL_STORAGE_QUERY_PROPERTY, &query,
-                                sizeof(STORAGE_PROPERTY_QUERY), &outBuf, 1024, &returnedbytes, NULL)) {
-                adapterDesc = (PSTORAGE_ADAPTER_DESCRIPTOR) outBuf;
-                devicenamebuffer[i] = 0x20;
-                devicenamebuffer[i+1] = '[';
-                i += 2;
-                switch((UCHAR) adapterDesc->BusType) {
-                    case 0x01: memcpy(devicenamebuffer+i, "SCSI", 4);         i += 4;  break;
-                    case 0x02: memcpy(devicenamebuffer+i, "ATAPI", 5);        i += 5;  break;
-                    case 0x03: memcpy(devicenamebuffer+i, "ATA", 3);          i += 3;  break;
-                    case 0x04: memcpy(devicenamebuffer+i, "IEEE 1394", 9);    i += 9;  break;
-                    case 0x05: memcpy(devicenamebuffer+i, "SSA", 3);          i += 3;  break;
-                    case 0x06: memcpy(devicenamebuffer+i, "Fibre", 5);        i += 5;  break;
-                    case 0x07: memcpy(devicenamebuffer+i, "USB", 3);          i += 3;  break;
-                    case 0x08: memcpy(devicenamebuffer+i, "RAID", 4);         i += 4;  break;
-                    case 0x09: memcpy(devicenamebuffer+i, "iSCSI", 5);        i += 5;  break;
-                    case 0x0A: memcpy(devicenamebuffer+i, "SAS", 3);          i += 3;  break;
-                    case 0x0B: memcpy(devicenamebuffer+i, "SATA", 4);         i += 4;  break;
-                    case 0x0C: memcpy(devicenamebuffer+i, "SD", 2);           i += 2;  break;
-                    case 0x0D: memcpy(devicenamebuffer+i, "MMC", 3);          i += 3;  break;
-                    case 0x0E: memcpy(devicenamebuffer+i, "Virtual", 7);      i += 7;  break;
-                    case 0x0F: memcpy(devicenamebuffer+i, "FB Virtual", 10);  i += 10; break;
-                    default:   memcpy(devicenamebuffer+i, "Unknown Bus", 11); i += 11; break;
-                }
-                devicenamebuffer[i] = ']';
-                i++;
-            }
-        #endif
-        
-        devicenamebuffer[i] = 0x00;  // terminating null
-    }
-    
-    if (strlen(devicenamebuffer)) {
-        isofilename = calloc(4 + strlen(devicenamebuffer) + strlen(drive) + 1, sizeof(char));
-        if (isofilename == NULL) {
-            color(red);
-            printf("ERROR: Memory allocation for device name failed! Game over man... Game over!%s", newline);
-            color(normal);
-          exit(1);
-        }
-        #ifdef WIN32
-            sprintf(isofilename, "%s (%s:)", devicenamebuffer, drive);
-        #else
-            sprintf(isofilename, "%s (%s)", devicenamebuffer, drive);
-        #endif
-    }
-    else {
-        isofilename = calloc(7 + strlen(drive) + 1, sizeof(char));
-        if (isofilename == NULL) {
-            color(red);
-            printf("ERROR: Memory allocation for device name failed! Game over man... Game over!%s", newline);
-            color(normal);
-          exit(1);
-        }
-        #ifdef WIN32
-            sprintf(isofilename, "Drive %s:", drive);
-        #else
-            sprintf(isofilename, "%s", drive);
-        #endif
-    }
-  return 0;
-}
 
 void closedeviceifopen() {
     #ifdef WIN32
@@ -3144,81 +2544,6 @@ long long getdisccapacity(bool checkblocklength, bool showerrors) {
     // return size of media in bytes
     ret = (long long) (getuintmsb(capbuffer) + 1) * 2048LL;
   return ret;
-}
-
-int processdirectory(char *rootdir, char **filenames, bool *blockdevice,
-                     bool matchonly, int matchfiles, char **matchfilelist, char *s) {
-    int i, len_ent;
-    int len_root = strlen(rootdir) + 1;  // leave room for possible slash
-    char path[len_root+1];  // leave room for terminating null
-    strcpy(path, rootdir);
-    if (path[strlen(path)-1] != '/' && path[strlen(path)-1] != '\\') {
-        #ifdef WIN32
-            strcat(path, "\\");
-        #else
-            strcat(path, "/");
-        #endif
-    }
-    DIR *dp;
-    struct dirent *ep;
-    dp = opendir(path);
-    if (debug) printf("processing directory: %s%s", path, newline);
-    if (dp != NULL) {
-        while ((ep = readdir(dp))) {
-            len_ent = strlen(ep->d_name);
-            if ((s = (char *) malloc(len_root + len_ent + 1)) == NULL ) {
-                color(red);
-                printf("ERROR: memory allocation for a filename failed! Game over man... Game over!%s", newline);
-                color(normal);
-              exit(1);
-            }
-            if (filecount == MAX_FILENAMES) {
-                color(red);
-                printf("ERROR: More than %d matching files!%s", MAX_FILENAMES, newline);
-                color(normal);
-              return 1;
-            }
-            strcpy(s, path);
-        	strcat(s, ep->d_name);
-            if (stat(s, &buf) == -1 ) {
-                color(yellow);
-                printf("ERROR: stat failed for %s%s%s (%s)%s", quotation, s, quotation, strerror(errno), newline);
-                color(normal);
-              continue;
-            }
-            if (buf.st_mode & S_IFDIR) {  // directory
-                if (recursesubdirs) {
-                    if ( (len_ent == 1 && strcmp(ep->d_name, ".") == 0) ||
-                         (len_ent == 2 && strcmp(ep->d_name, "..") == 0) ) continue;
-                    if (processdirectory(s, filenames, blockdevice, matchonly, matchfiles, matchfilelist, s)) return 1;
-                }
-            }
-            else if (buf.st_mode & (S_IFREG | S_IFBLK)) {  // regular files or block devices
-                if (matchonly) {
-                    for (i=0;i<matchfiles;i++) {
-                        if (fnmatch(matchfilelist[i], ep->d_name, FNM_CASEFOLD) == 0) goto foundmatch;
-                    }
-                  continue;
-                }
-                foundmatch:
-        	    filenames[filecount] = s;
-        	    if (buf.st_mode & S_IFBLK) blockdevice[filecount] = true;
-                if (debug) {
-                    printf("%ld: %s", filecount, filenames[filecount]);
-                    if (blockdevice[filecount]) printf(" (block device)%s", newline);
-                    else printf("%s", newline);
-                }
-                filecount++;
-            }
-        }
-        closedir(dp);
-    }
-    else {
-        color(yellow);
-        printf("ERROR: Couldn't open directory %s%s%s (%s)%s", quotation, path, quotation, strerror(errno), newline);
-        color(normal);
-    }
-  return 0;
 }
 
 void parsecmdline(int argc, char *argv[]) {
@@ -4665,9 +3990,15 @@ int main(int argc, char *argv[]) {
                 printf("ERROR: stat failed for %s (%s)%s", argv[i], strerror(errno), newline);
               continue;
             }
+            #ifdef WIN32
+            if ( buf.st_mode & (S_IFREG) ) {  // regular files or block devices
+            #else
             if ( buf.st_mode & (S_IFREG | S_IFBLK) ) {  // regular files or block devices
+            #endif
         	    filenames[filecount] = argv[i];
+                #if !defined(WIN32)
         	    if ( buf.st_mode & S_IFBLK ) blockdevice[filecount] = true;
+                #endif
                 if (debug) {
                     printf("%ld: %s", filecount, filenames[filecount]);
                     if (blockdevice[filecount]) printf(" (block device)%s", newline);
@@ -5588,35 +4919,35 @@ void printpfitable(unsigned long startpsnL0, unsigned long endpsnL0, unsigned lo
                    unsigned long sectorsL0, unsigned long sectorsL1, unsigned long long offsetL0, unsigned long long offsetL0end,
                    unsigned long long offsetL1, unsigned long long offsetend, unsigned long sectorstotal) {
     printf("%s%06lXh ", sp5, startpsnL0); color(arrow);
-    if (terminal) printf("ÄÄÄÄÄÄÄ PSN ÄÄÄÄÄÄ%s", greaterthan);
+    if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PSN ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", greaterthan);
     else printf("------- PSN ------%s", greaterthan);
     color(normal); printf(" %06lXh %06lXh ", endpsnL0, startpsnL1); color(arrow);
-    if (terminal) printf("ÄÄÄÄÄÄÄ PSN ÄÄÄÄÄÄ%s", greaterthan);
+    if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PSN ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", greaterthan);
     else printf("------- PSN ------%s", greaterthan);
     color(normal); printf(" %06lXh%s", endpsnL1, newline); color(box);
-    if (terminal) printf("%sÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿%s%s", sp5, newline, sp5);
+    if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿%s%s", sp5, newline, sp5);
     else printf("%s+----------------------------------+----------------------------------+%s%s", sp5, newline, sp5);
-    if (terminal && !html) printf("³");
+    if (terminal && !html) printf("ï¿½");
     else printf("|");
     color(normal); printf("%sL0 Data Area = %07lu sectors%s", sp2, sectorsL0, sp2); color(box);
-    if (terminal && !html) printf("³");
+    if (terminal && !html) printf("ï¿½");
     else printf("|");
     color(normal); printf("%sL1 Data Area = %07lu sectors%s", sp2, sectorsL1, sp2); color(box);
-    if (terminal && !html) printf("³");
+    if (terminal && !html) printf("ï¿½");
     else printf("|");
-    if (terminal) printf("%s%sÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ%s", newline, sp5, newline);
+    if (terminal) printf("%s%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", newline, sp5, newline);
     else printf("%s%s+----------------------------------+----------------------------------+%s", newline, sp5, newline);
     color(normal); printf("%s0x%010"LL"X ", sp5, offsetL0); color(arrow);
-    if (terminal) printf("ÄÄÄÄÄÄÄÄ%s", greaterthan);
+    if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", greaterthan);
     else printf("--------%s", greaterthan);
     color(normal); printf(" 0x%010"LL"X 0x%010"LL"X ", offsetL0end, offsetL1); color(arrow);
-    if (terminal) printf("ÄÄÄÄÄÄÄÄ%s", greaterthan);
+    if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", greaterthan);
     else printf("--------%s", greaterthan);
     color(normal); printf(" 0x%010"LL"X%s", offsetend, newline); color(arrow);
-    if (terminal) printf("%s%sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ", sp5, lessthan);
+    if (terminal) printf("%s%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½", sp5, lessthan);
     else printf("%s%s-----------------", sp5, lessthan);
     color(normal); printf(" %07lu sectors (%010"LL"u bytes) ", sectorstotal, (unsigned long long) sectorstotal * 2048); color(arrow);
-    if (terminal) printf("ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s%s%s", greaterthan, newline, newline);
+    if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s%s%s", greaterthan, newline, newline);
     else printf("----------------%s%s%s", greaterthan, newline, newline);
     color(normal);
   return;
@@ -10454,46 +9785,46 @@ void printheader() {
     int i;
     if (!noheader) {
         color(blue);
-        if (terminal) printf("ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s", newline);
+        if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", newline);
         else printf("-------------------------------------------------------------------------------%s", newline);
         color(darkblue); printf("\\\\//\\\\//\\\\//\\\\//");
-        if (terminal) { printf("\\\\/"); color(normal); printf("Û"); color(darkblue); printf("\\\\//\\ "); }
+        if (terminal) { printf("\\\\/"); color(normal); printf("ï¿½"); color(darkblue); printf("\\\\//\\ "); }
         else { color(white); printf("%s_ |_%s_ ", sp2, sp2); }
         color(green); printf("\\ \\/ /"); color(white);
-        if (terminal) printf("ÚÄ¿ÚÄ¿ÚÄ¿");
+        if (terminal) printf("ï¿½Ä¿ï¿½Ä¿ï¿½Ä¿");
         else printf("_%s_%s_%s", sp2, sp2, sp2);
         color(darkblue); printf("\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\%s//\\\\//\\\\//\\\\//\\", newline);
         if (!terminal) printf("\\");
-        if (terminal) { color(normal); printf("ÛßÛ"); color(darkblue); printf("\\"); color(normal); printf("ÛßÛ");
-                        color(darkblue); printf("\\"); color(normal); printf("ÛßÛ"); }
+        if (terminal) { color(normal); printf("ï¿½ï¿½ï¿½"); color(darkblue); printf("\\"); color(normal); printf("ï¿½ï¿½ï¿½");
+                        color(darkblue); printf("\\"); color(normal); printf("ï¿½ï¿½ï¿½"); }
         else { color(white); printf(" (_||_)(_|"); }
         color(green); printf("/ /\\ \\"); color(white);
-        if (terminal && html) printf(" Ä´ÃÄ¿| |");
-        else if (terminal) printf(" Ä´ÃÄ¿³ ³");
+        if (terminal && html) printf(" Ä´ï¿½Ä¿| |");
+        else if (terminal) printf(" Ä´ï¿½Ä¿ï¿½ ï¿½");
         else printf("_||_ | | ");
         color(darkblue); printf("//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//\\\\//%s", newline); color(blue);
-        if (terminal) { printf("ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ"); color(normal); printf("ßßß"); color(blue); printf("Ä");
-                        color(normal); printf("ßßß"); color(blue); printf("Ä"); color(normal); printf("ßßÛ"); }
+        if (terminal) { printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"); color(normal); printf("ï¿½ï¿½ï¿½"); color(blue); printf("ï¿½");
+                        color(normal); printf("ï¿½ï¿½ï¿½"); color(blue); printf("ï¿½"); color(normal); printf("ï¿½ï¿½ï¿½"); }
         else { printf("------------------------"); color(white); printf("_|"); }
         color(blue);
-        if (terminal) printf("ÄÄÄÄÄÄ");
+        if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
         else printf("------");
         color(white);
-        if (terminal) printf("ÀÄÙÀÄÙÀÄÙ");
+        if (terminal) printf("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
         else printf("_||_||_|"); color(blue);
-        if (terminal) printf("Ä");
+        if (terminal) printf("ï¿½");
         else printf("--");
         color(normal); printf("%s", headerversion); color(blue);
         for (i=0;i<9 - (int) strlen(headerversion);i++) {
-            if (terminal) printf("Ä");
+            if (terminal) printf("ï¿½");
             else printf("-");
         }
         color(normal); printf("[http://abgx360.hadzz.com]"); color(blue);
-        if (terminal) printf("ÄÄ");
+        if (terminal) printf("ï¿½ï¿½");
         else printf("--");
         printf("%s", newline);
         color(normal);
-        if (terminal) printf("%s%s%s ßßß", sp10, sp10, sp2);
+        if (terminal) printf("%s%s%s ï¿½ï¿½ï¿½", sp10, sp10, sp2);
         printf("%s", newline);
     }
   return;
@@ -10515,7 +9846,7 @@ void endunicode() {
   return;
 }
 
-void color(char *color) {
+void color(const char *color) {
     if (stripcolors) {
       return;
     }
@@ -12384,7 +11715,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("©");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00AE) {
@@ -12395,7 +11726,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("®");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00B0 || codepoint == 0x00BA) {
@@ -12403,15 +11734,15 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xF8);
                 else {
-                    if (codepoint == 0x00B0) return printf("°");
-                    else return printf("º");
+                    if (codepoint == 0x00B0) return printf("ï¿½");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00B2) {
                 // superscript 2
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xFD);
-                else return printf("²");
+                else return printf("ï¿½");
             }
             else if (codepoint == 0x00B3) {
                 // superscript 3
@@ -12421,14 +11752,14 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("³");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00B4) {
                 // acute accent
                 if (justcount) return 1;
                 else if (terminal) return printf("'");
-                else return printf("´");
+                else return printf("ï¿½");
             }
             else if (codepoint == 0x00B9) {
                 // superscript 1
@@ -12438,20 +11769,20 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("¹");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00BC) {
                 // 1/4
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xAC);
-                else return printf("¼");
+                else return printf("ï¿½");
             }
             else if (codepoint == 0x00BD) {
                 // 1/2
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xAB);
-                else return printf("½");
+                else return printf("ï¿½");
             }
             else if (codepoint == 0x00BE) {
                 // 3/4
@@ -12461,14 +11792,14 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("¾");
+                    else return printf("ï¿½");
                 }
             }
             else if (codepoint == 0x00BF) {
                 // inverted question mark
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xA8);
-                else return printf("¿");
+                else return printf("ï¿½");
             }
             else if ((codepoint >= 0x00C0 && codepoint <= 0x00C5) || codepoint == 0x0100 || codepoint == 0x0102 || codepoint == 0x0104 ||
                      codepoint == 0x01CD || codepoint == 0x01DE || codepoint == 0x01E0 || codepoint == 0x01FA || codepoint == 0x0200 ||
@@ -12481,12 +11812,12 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     else if (codepoint == 0x00C5) return printf("%c", 0x8F);  // capital A with ring above
                 }
                 else {
-                    if      (codepoint == 0x00C0) return printf("À");  // capital A with Grave
-                    else if (codepoint == 0x00C1) return printf("Á");  // capital A with Acute
-                    else if (codepoint == 0x00C2) return printf("Â");  // capital A with Circumflex
-                    else if (codepoint == 0x00C3) return printf("Ã");  // capital A with Tilde
-                    else if (codepoint == 0x00C4 || codepoint == 0x04D2) return printf("Ä");  // latin/cyrillic capital A with Diaeresis
-                    else if (codepoint == 0x00C5) return printf("Å");  // capital A with ring above
+                    if      (codepoint == 0x00C0) return printf("ï¿½");  // capital A with Grave
+                    else if (codepoint == 0x00C1) return printf("ï¿½");  // capital A with Acute
+                    else if (codepoint == 0x00C2) return printf("ï¿½");  // capital A with Circumflex
+                    else if (codepoint == 0x00C3) return printf("ï¿½");  // capital A with Tilde
+                    else if (codepoint == 0x00C4 || codepoint == 0x04D2) return printf("ï¿½");  // latin/cyrillic capital A with Diaeresis
+                    else if (codepoint == 0x00C5) return printf("ï¿½");  // capital A with ring above
                 }
                 return printf("A");
             }
@@ -12503,12 +11834,12 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     else if (codepoint == 0x00E5) return printf("%c", 0x86);  // lowercase a with ring above
                 }
                 else {
-                    if      (codepoint == 0x00E0) return printf("à");  // lowercase a with Grave
-                    else if (codepoint == 0x00E1) return printf("á");  // lowercase a with Acute
-                    else if (codepoint == 0x00E2) return printf("â");  // lowercase a with Circumflex
-                    else if (codepoint == 0x00E3) return printf("ã");  // lowercase a with Tilde
-                    else if (codepoint == 0x00E4 || codepoint == 0x04D3) return printf("ä");  // latin/cyrillic lowercase a with Diaeresis
-                    else if (codepoint == 0x00E5) return printf("å");  // lowercase a with ring above
+                    if      (codepoint == 0x00E0) return printf("ï¿½");  // lowercase a with Grave
+                    else if (codepoint == 0x00E1) return printf("ï¿½");  // lowercase a with Acute
+                    else if (codepoint == 0x00E2) return printf("ï¿½");  // lowercase a with Circumflex
+                    else if (codepoint == 0x00E3) return printf("ï¿½");  // lowercase a with Tilde
+                    else if (codepoint == 0x00E4 || codepoint == 0x04D3) return printf("ï¿½");  // latin/cyrillic lowercase a with Diaeresis
+                    else if (codepoint == 0x00E5) return printf("ï¿½");  // lowercase a with ring above
                 }
                 return printf("a");
             }
@@ -12516,13 +11847,13 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 // latin or cyrillic capital AE's
                 if (justcount) return 1;
                 if (terminal) return printf("%c", 0x92);
-                return printf("Æ");
+                return printf("ï¿½");
             }
             else if (codepoint == 0x00E6 || codepoint == 0x01E3 || codepoint == 0x01FD || codepoint == 0x04D5) {
                 // latin or cyrillic lowercase ae's
                 if (justcount) return 1;
                 if (terminal) return printf("%c", 0x91);
-                return printf("æ");
+                return printf("ï¿½");
             }
             else if ((codepoint >= 0x00C8 && codepoint <= 0x00CB) || codepoint == 0x0112 || codepoint == 0x0114 || codepoint == 0x0116 ||
                      codepoint == 0x0118 || codepoint == 0x011A || codepoint == 0x0204 || codepoint == 0x0206 || codepoint == 0x0388 ||
@@ -12533,10 +11864,10 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     if (codepoint == 0x00C9) return printf("%c", 0x90);  // capital E with Acute
                 }
                 else {
-                    if      (codepoint == 0x00C8) return printf("È");  // capital E with Grave
-                    else if (codepoint == 0x00C9) return printf("É");  // capital E with Acute
-                    else if (codepoint == 0x00CA) return printf("Ê");  // capital E with Circumflex
-                    else if (codepoint == 0x00CB || codepoint == 0x0401) return printf("Ë");  // capital E with Diaeresis or cyrillic capital Io
+                    if      (codepoint == 0x00C8) return printf("ï¿½");  // capital E with Grave
+                    else if (codepoint == 0x00C9) return printf("ï¿½");  // capital E with Acute
+                    else if (codepoint == 0x00CA) return printf("ï¿½");  // capital E with Circumflex
+                    else if (codepoint == 0x00CB || codepoint == 0x0401) return printf("ï¿½");  // capital E with Diaeresis or cyrillic capital Io
                 }
                 return printf("E");
             }
@@ -12552,10 +11883,10 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     else if (codepoint == 0x00EB || codepoint == 0x0451) return printf("%c", 0x89);  // lowercase e with Diaeresis or cyrillic lowercase Io
                 }
                 else {
-                    if      (codepoint == 0x00E8) return printf("è");  // lowercase e with Grave
-                    else if (codepoint == 0x00E9) return printf("é");  // lowercase e with Acute
-                    else if (codepoint == 0x00EA) return printf("ê");  // lowercase e with Circumflex
-                    else if (codepoint == 0x00EB || codepoint == 0x0451) return printf("ë");  // lowercase e with Diaeresis or cyrillic lowercase Io
+                    if      (codepoint == 0x00E8) return printf("ï¿½");  // lowercase e with Grave
+                    else if (codepoint == 0x00E9) return printf("ï¿½");  // lowercase e with Acute
+                    else if (codepoint == 0x00EA) return printf("ï¿½");  // lowercase e with Circumflex
+                    else if (codepoint == 0x00EB || codepoint == 0x0451) return printf("ï¿½");  // lowercase e with Diaeresis or cyrillic lowercase Io
                 }
                 return printf("e");
             }
@@ -12566,11 +11897,11 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 // latin capital I's, greek capital Iotas or cyrillic capital I's/Yi's/Palochkas
                 if (justcount) return 1;
                 if (!terminal) {
-                    if      (codepoint == 0x00CC) return printf("Ì");  // capital I with Grave
-                    else if (codepoint == 0x00CD) return printf("Í");  // capital I with Acute
-                    else if (codepoint == 0x00CE) return printf("Î");  // capital I with Circumflex
+                    if      (codepoint == 0x00CC) return printf("ï¿½");  // capital I with Grave
+                    else if (codepoint == 0x00CD) return printf("ï¿½");  // capital I with Acute
+                    else if (codepoint == 0x00CE) return printf("ï¿½");  // capital I with Circumflex
                     else if (codepoint == 0x00CF || codepoint == 0x03AA || codepoint == 0x0407)
-                        return printf("Ï");  // latin capital I with Diaeresis, greek capital Iota with Dialytika or cyrillic capital Yi
+                        return printf("ï¿½");  // latin capital I with Diaeresis, greek capital Iota with Dialytika or cyrillic capital Yi
                 }
                 return printf("I");
             }
@@ -12588,11 +11919,11 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                         return printf("%c", 0x8B);  // latin lowercase i with Diaeresis, greek lowercase iota with Dialytika or cyrillic lowercase yi
                 }
                 else {
-                    if      (codepoint == 0x00EC) return printf("ì");  // lowercase i with Grave
-                    else if (codepoint == 0x00ED) return printf("í");  // lowercase i with Acute
-                    else if (codepoint == 0x00EE) return printf("î");  // lowercase i with Circumflex
+                    if      (codepoint == 0x00EC) return printf("ï¿½");  // lowercase i with Grave
+                    else if (codepoint == 0x00ED) return printf("ï¿½");  // lowercase i with Acute
+                    else if (codepoint == 0x00EE) return printf("ï¿½");  // lowercase i with Circumflex
                     else if (codepoint == 0x00EF || codepoint == 0x03CA || codepoint == 0x0457)
-                        return printf("ï");  // latin lowercase i with Diaeresis, greek lowercase iota with Dialytika or cyrillic lowercase yi
+                        return printf("ï¿½");  // latin lowercase i with Diaeresis, greek lowercase iota with Dialytika or cyrillic lowercase yi
                 }
                 return printf("i");
             }
@@ -12603,7 +11934,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 if (codepoint == 0x00D1) {
                     // latin capital N with Tilde
                     if (terminal) return printf("%c", 0xA5);
-                    else return printf("Ñ");
+                    else return printf("ï¿½");
                 }
                 return printf("N");
             }
@@ -12614,7 +11945,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 if (codepoint == 0x00F1) {
                     // latin lowercase n with Tilde
                     if (terminal) return printf("%c", 0xA4);
-                    else return printf("ñ");
+                    else return printf("ï¿½");
                 }
                 return printf("n");
             }
@@ -12628,12 +11959,12 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     if (codepoint == 0x00D6 || codepoint == 0x04E6) return printf("%c", 0x99);  // latin/cyrillic capital O with Diaeresis
                 }
                 else {
-                    if      (codepoint == 0x00D2) return printf("Ò");  // capital O with Grave
-                    else if (codepoint == 0x00D3) return printf("Ó");  // capital O with Acute
-                    else if (codepoint == 0x00D4) return printf("Ô");  // capital O with Circumflex
-                    else if (codepoint == 0x00D5) return printf("Õ");  // capital O with Tilde
-                    else if (codepoint == 0x00D6 || codepoint == 0x04E6) return printf("Ö");  // latin/cyrillic capital O with Diaeresis
-                    else if (codepoint == 0x00D8) return printf("Ø");  // capital O with Stroke
+                    if      (codepoint == 0x00D2) return printf("ï¿½");  // capital O with Grave
+                    else if (codepoint == 0x00D3) return printf("ï¿½");  // capital O with Acute
+                    else if (codepoint == 0x00D4) return printf("ï¿½");  // capital O with Circumflex
+                    else if (codepoint == 0x00D5) return printf("ï¿½");  // capital O with Tilde
+                    else if (codepoint == 0x00D6 || codepoint == 0x04E6) return printf("ï¿½");  // latin/cyrillic capital O with Diaeresis
+                    else if (codepoint == 0x00D8) return printf("ï¿½");  // capital O with Stroke
                 }
                 return printf("O");
             }
@@ -12650,12 +11981,12 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     else if (codepoint == 0x00F6 || codepoint == 0x04E7) return printf("%c", 0x94);  // latin/cyrillic lowercase o with Diaeresis
                 }
                 else {
-                    if      (codepoint == 0x00F2) return printf("ò");  // lowercase o with Grave
-                    else if (codepoint == 0x00F3) return printf("ó");  // lowercase o with Acute
-                    else if (codepoint == 0x00F4) return printf("ô");  // lowercase o with Circumflex
-                    else if (codepoint == 0x00F5) return printf("õ");  // lowercase o with Tilde
-                    else if (codepoint == 0x00F6 || codepoint == 0x04E7) return printf("ö");  // latin/cyrillic lowercase o with Diaeresis
-                    else if (codepoint == 0x00F8) return printf("ø");  // lowercase o with Stroke
+                    if      (codepoint == 0x00F2) return printf("ï¿½");  // lowercase o with Grave
+                    else if (codepoint == 0x00F3) return printf("ï¿½");  // lowercase o with Acute
+                    else if (codepoint == 0x00F4) return printf("ï¿½");  // lowercase o with Circumflex
+                    else if (codepoint == 0x00F5) return printf("ï¿½");  // lowercase o with Tilde
+                    else if (codepoint == 0x00F6 || codepoint == 0x04E7) return printf("ï¿½");  // latin/cyrillic lowercase o with Diaeresis
+                    else if (codepoint == 0x00F8) return printf("ï¿½");  // lowercase o with Stroke
                 }
                 return printf("o");
             }
@@ -12669,10 +12000,10 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     if (codepoint == 0x00DC) return printf("%c", 0x9A);  // capital U with Diaeresis
                 }
                 else {
-                    if      (codepoint == 0x00D9) return printf("Ù");  // capital U with Grave
-                    else if (codepoint == 0x00DA) return printf("Ú");  // capital U with Acute
-                    else if (codepoint == 0x00DB) return printf("Û");  // capital U with Circumflex
-                    else if (codepoint == 0x00DC) return printf("Ü");  // capital U with Diaeresis
+                    if      (codepoint == 0x00D9) return printf("ï¿½");  // capital U with Grave
+                    else if (codepoint == 0x00DA) return printf("ï¿½");  // capital U with Acute
+                    else if (codepoint == 0x00DB) return printf("ï¿½");  // capital U with Circumflex
+                    else if (codepoint == 0x00DC) return printf("ï¿½");  // capital U with Diaeresis
                 }
                 return printf("U");
             }
@@ -12689,10 +12020,10 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                     else if (codepoint == 0x00FC || codepoint == 0x03CB) return printf("%c", 0x81);  // latin lowercase u with Diaeresis or greek lowercase upsilon with Dialytika
                 }
                 else {
-                    if      (codepoint == 0x00F9) return printf("ù");  // lowercase u with Grave
-                    else if (codepoint == 0x00FA) return printf("ú");  // lowercase u with Acute
-                    else if (codepoint == 0x00FB) return printf("û");  // lowercase u with Circumflex
-                    else if (codepoint == 0x00FC || codepoint == 0x03CB) return printf("ü");  // latin lowercase u with Diaeresis or greek lowercase upsilon with Dialytika
+                    if      (codepoint == 0x00F9) return printf("ï¿½");  // lowercase u with Grave
+                    else if (codepoint == 0x00FA) return printf("ï¿½");  // lowercase u with Acute
+                    else if (codepoint == 0x00FB) return printf("ï¿½");  // lowercase u with Circumflex
+                    else if (codepoint == 0x00FC || codepoint == 0x03CB) return printf("ï¿½");  // latin lowercase u with Diaeresis or greek lowercase upsilon with Dialytika
                 }
                 return printf("u");
             }
@@ -12723,7 +12054,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 // bullet
                 if (justcount) return 1;
                 else if (terminal) return printf("%c", 0xF9);
-                else return printf("·");
+                else return printf("ï¿½");
             }
             else if (codepoint == 0x2018 || codepoint == 0x2019 || codepoint == 0x201B || codepoint == 0x2032 || codepoint == 0x2035) {
                 // single quotes/primes
@@ -12764,7 +12095,7 @@ int printcodepoint(unsigned long codepoint, bool justcount) {
                 }
                 else {
                     if (justcount) return 1;
-                    else return printf("©");
+                    else return printf("ï¿½");
                 }
             }
         }
@@ -17581,12 +16912,12 @@ int checkss() {
         }
         else printf("%sSS Version: 1%s", sp5, newline);
         color(blue);
-        if (terminal) printf("%sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s", sp5, newline);
+        if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", sp5, newline);
         else          printf("%s--------------------------------------------------------------------------%s", sp5, newline);
         color(normal);
         printf("%sCT RT CID Tol Mod Typ Data %s CD %s Response %s Angle Deviation%s", sp5, sp8, sp5, sp1, newline);
         color(blue);
-        if (terminal) printf("%sÄÄ ÄÄ ÄÄ%s ÄÄ%s ÄÄ%s ÄÄ%s ÄÄÄÄÄÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄÄÄ ÄÄÄÄÄ ÄÄÄÄÄÄÄÄÄÄÄÄ%s", sp5, sp1, sp1, sp1, sp1, newline);
+        if (terminal) printf("%sï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½%s ï¿½ï¿½%s ï¿½ï¿½%s ï¿½ï¿½%s ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", sp5, sp1, sp1, sp1, sp1, newline);
         else          printf("%s-- -- --%s --%s --%s --%s ------------- -------- ---------- ----- ------------%s", sp5, sp1, sp1, sp1, sp1, newline);
         color(normal);
         bool stayred;
@@ -17873,7 +17204,7 @@ int checkss() {
             }
         }
         color(blue);
-        if (terminal) printf("%sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s", sp5, newline);
+        if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", sp5, newline);
         else          printf("%s--------------------------------------------------------------------------%s", sp5, newline);
         color(normal);
     }
@@ -19291,12 +18622,12 @@ void showap25data(unsigned char *ap25bin) {
     }
     if (extraverbose) {
         color(blue);
-        if (terminal) printf("%sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s", sp5, newline);
+        if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", sp5, newline);
         else          printf("%s-------------------------------------%s", sp5, newline);
         color(normal);
         printf("%sPSN 1 %s PSN 2 %s Data %s Angle Pad%s", sp5, sp2, sp2, sp3, newline);
         color(blue);
-        if (terminal) printf("%sÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄ ÄÄÄÄÄ ÄÄÄÄ%s", sp5, newline);
+        if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½%s", sp5, newline);
         else          printf("%s-------- -------- -------- ----- ----%s", sp5, newline);
         color(normal);
         for (i=0; i<128; i++) {
@@ -19317,7 +18648,7 @@ void showap25data(unsigned char *ap25bin) {
             }
         }
         color(blue);
-        if (terminal) printf("%sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ%s", sp5, newline);
+        if (terminal) printf("%sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%s", sp5, newline);
         else          printf("%s-------------------------------------%s", sp5, newline);
         color(normal);
     }
