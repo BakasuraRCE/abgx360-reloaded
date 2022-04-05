@@ -19,6 +19,5 @@
 
 EXTERNC int opendeviceandgetname(char *drive, bool requestexclusiveaccess, bool errorsareok);
 EXTERNC int processdirectory(char *rootdir, char **filenames, bool *blockdevice, bool matchonly, int matchfiles, char **matchfilelist, char *s);
-EXTERNC int docheckdvdfile();
 
 #undef EXTERNC
