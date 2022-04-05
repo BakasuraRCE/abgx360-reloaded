@@ -13,7 +13,7 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 #endif
 
 #define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
+/* #define _LARGEFILE64_SOURCE https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #define _FILE_OFFSET_BITS 64
 #define _GNU_SOURCE
 
@@ -73,11 +73,15 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 #include <stdint.h>    // for int32_t
 #include <stdlib.h>    // standard library definitions
 #include <string.h>    // for string operations
-#include <strings.h>   // for more string operations
+#if !defined(WIN32) || defined(__MINGW32__)
+    #include <strings.h>   // for more string operations
+#endif
 #include <errno.h>     // for errors
 #include <sys/types.h> // type definitions like off_t
 #include <time.h>      // for time()
-#include <dirent.h>    // for opendir, readdir
+#if !defined(WIN32) || defined(__MINGW32__)
+    #include <dirent.h>    // for opendir, readdir
+#endif
 #include <sys/stat.h>  // for stat(), bsd/posix mkdir()
 #include <math.h>      // for pow, roundf
 #include "rijndael-alg-fst.h"
@@ -90,13 +94,20 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
     #define ABGX360_OS "Windows"
     #include "zlib.h"
     #include "curl/curl.h"
-    #include "fnmatch.h"      // for fnmatch
+    //#include "fnmatch.h"      // for fnmatch
     #include <windows.h>      // for GetTickCount, SetConsoleTextAttribute, ReadFile, RegOpenKeyEx, RegQueryValueEx, CreateFile, SetFilePointerEx, SetEndOfFile, ...
     #include <conio.h>        // for getch
     #include <direct.h>       // for _mkdir
     #include <ntddstor.h> // device i/o stuff
     #include <ntddscsi.h> // SCSI_PASS_THROUGH_DIRECT
-    #include "spti.h"         // SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER
+    //#include "spti.h"         // SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER
+
+    typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
+    SCSI_PASS_THROUGH_DIRECT sptd;				// to driver, contains CDB
+    ULONG	Filler;								// realign buffer to double word boundary
+    UCHAR	ucSenseBuf[32];	// buf for returned sense data
+    } SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, *PSCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
+
     char winbuffer[2048];
     HANDLE hDevice = INVALID_HANDLE_VALUE;
     #define mkdir(a,b) _mkdir(a)
@@ -332,7 +343,7 @@ unsigned long getuint(unsigned char* ptr), getuintmsb(unsigned char* ptr), getin
 #endif
 int mystrcasecmp(const char* str1, const char* str2);
 int mystrncasecmp(const char* str1, const char* str2, size_t n);
-int myfseeko(FILE *stream, off64_t offset, int whence);
+int myfseeko(FILE *stream, off_t offset, int whence);
 off_t myftello(FILE *stream);
 sha1_context ctx;
 /*
@@ -10622,7 +10633,7 @@ off_t myftello(FILE *stream) {
     #endif
 }
 
-int myfseeko(FILE *stream, off64_t offset, int whence) {
+int myfseeko(FILE *stream, off_t offset, int whence) {
     #ifdef WIN32
       //if ((dvdarg || riparg) && stream == NULL) return 0;
       if (dvdarg && stream == NULL) return 0;
