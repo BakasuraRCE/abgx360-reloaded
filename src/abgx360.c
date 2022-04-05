@@ -15095,12 +15095,18 @@ int checkdefaultxex(unsigned char *defaultxexbuffer, unsigned long defaultxexsiz
             if (debug) printf("%slibnames_length = %lu%s%slibnames_count = %lu%s", sp5, libnames_length, newline, sp5, libnames_count, newline);
             if (libnames_count > 0 && libnames_length > 0 && (importlibs_address + 12 + libnames_length <= codeoffset)) {
                 // get names of the import libraries (only used for debug output, but might be useful if the name is the only way to tell if it's a system lib)
-                char libnames[libnames_count][libnames_length+1];
+                // https://phyweb.physics.nus.edu.sg/~phywjs/CZ1102/lecture20/tsld014.htm#:~:text=Two-dimensional%20array%20with%20calloc%20Allocate%20a%20one-dimensional%20array,of%20double%2C%20let%20the%20pointer%20pointing%20to%20it.
+                char **libnames; // char libnames[libnames_count][libnames_length+1];
+                libnames = (char **) calloc(libnames_count, sizeof(char*));
+                for(i = 0; i < libnames_count; ++i) {
+                    libnames[i] = (char *) calloc(libnames_length + 1, sizeof(char));
+                }
+
                 for (m=0;m<libnames_count;m++) memset(libnames[m], 0, libnames_length+1);
                 n = 0;
                 unsigned long current_char = 0;
-                unsigned long libversion[libnames_count];
-                unsigned long libversion_min[libnames_count];
+                unsigned long *libversion = calloc(libnames_count, sizeof(unsigned long)); // unsigned long libversion[libnames_count];
+                unsigned long *libversion_min = calloc(libnames_count, sizeof(unsigned long)); // unsigned long libversion_min[libnames_count];
                 unsigned long libversion_min_greatest = 0;
                 for (m=0;m<libnames_count;m++) {
                     libversion[m] = 0;
@@ -15508,7 +15514,8 @@ int checkdefaultxex(unsigned char *defaultxexbuffer, unsigned long defaultxexsiz
             }
             else if (compressioninfo_size > 8) {
                 int basiccompressionentries = (int) (compressioninfo_size - 8) / 8;
-                struct { unsigned long address, paddingsize; } basiccompressioninfo[basiccompressionentries];
+                typedef struct { unsigned long address, paddingsize; } _basiccompressioninfo;
+                _basiccompressioninfo *basiccompressioninfo = malloc(basiccompressionentries * sizeof(*basiccompressioninfo));
                 for (i=0;i<basiccompressionentries;i++)
                     basiccompressioninfo[i].address = getuintmsb(defaultxexbuffer+compressioninfo_address+8+(i*8));
                 for (i=0;i<basiccompressionentries;i++)
