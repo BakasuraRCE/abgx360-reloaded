@@ -17,56 +17,6 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 #define _FILE_OFFSET_BITS 64
 #define _GNU_SOURCE
 
-#define PFI_HEX 1
-#define DMI_HEX 2
-
-#define WEB_INIDIR           1
-#define WEB_CSV              2
-#define WEB_DAT              3
-#define WEB_TOPOLOGY         4
-#define WEB_STEALTHDIR       5
-#define WEB_AUTOUPLOAD       6
-#define WEB_UNVERIFIEDINIDIR 7
-//#define WEB_AP25AUTOUPLOAD   8
-//#define WEB_DAE              9
-
-
-#define XEX_INI                  1
-#define SSXEX_INI                2
-#define SSXEX_INI_FROM_XEX_INI   3
-#define UNVERIFIED_INI           4
-#define SS_FILE                  5
-#define SS_FILE_OK_IF_MISSING    6
-#define STEALTH_FILE             7
-#define GIANT_VIDEO_FILE         8
-#define SMALL_VIDEO_FILE         9
-#define TOP_BIN_FILE            10
-#define TOP_HASH_FILE           11
-
-#define	MAX_FILENAMES 100000
-
-// MAX_DIR_LEVELS * MAX_DIR_SECTORS * 2048 will be the maximum size of fsbuffer during execution
-#define MIN_DIR_SECTORS 20
-#define MAX_DIR_SECTORS 300  // needs to be an even multiple of MIN_DIR_SECTORS; largest observed was cod4 (53)
-#define MIN_DIR_LEVELS  10
-#define MAX_DIR_LEVELS  150  // needs to be an even multiple of MIN_DIR_LEVELS; largest observed was dark messiah (22)
-
-#define WOW_THATS_A_LOT_OF_RAM 134217728  // 128 MB
-
-// values for extended c/r
-#define NUM_SS_CR_SAMPLES   51  // should be an odd number, may cause poor formatting of bar graphs if greater than 59
-//#define NUM_AP25_CR_SAMPLES 31  // should be an odd number, may cause poor formatting of bar graphs if greater than 57
-//#define AP25_HIGH_ANGLE     9   // don't change this
-//#define AP25_MEDIUM_ANGLE   5
-#define SS_TOLERANCE        15
-#define SS_HIGH_ANGLE       9
-#define SS_MEDIUM_ANGLE     5
-
-//#define DAE_HEADER_SIZE 336
-//#define DAE_SEARCH_MID  0
-//#define DAE_SEARCH_DID  1
-//#define DAE_SEARCH_TID  2
-
 #include "global.h"
 
 #include <stdio.h>     // standard i/o
@@ -254,49 +204,7 @@ bool valid_ssv2_exists_in_db();
 struct angledev {unsigned int angle; int dev;};
 int getangledeviation(int angle, int target);
 
-// global vars that might need to be reset after every fileloop
-bool writefile = true;
-bool checkgamecrcalways = false, checkgamecrcnever = false, gamecrcfailed = false, verifyfailed = false;
-bool stealthfailed = false, stealthuncertain = false, xbox1iso = false;
-bool ss_stealthfailed = false, dmi_stealthfailed = false, pfi_stealthfailed = false, video_stealthfailed = false;
-bool dmi_stealthuncertain = false, ss_stealthuncertain = false, pfi_stealthuncertain = false, video_stealthuncertain = false;
-bool xex_foundmediaid = false, xex_founddiscprofileid = false, foundtitleid = false, foundregioncode = false, foundgamename = false;
-bool ss_foundtimestamp = false, usercancelledgamecrc = false;
-bool pfi_alreadydumped = false, pfi_foundsectorstotal = false, pfiexception = false;
-bool wtfhex = false, checkssbin = false;
-bool justastealthfile = false, isotoosmall = false;
-bool drtfucked = false, fixedss = false, fixedtopology = false; //fixedap25 = false;
-bool printstderr = false, rebuildfailed = false, curlheaderprinted = false;
-int unrecognizedRTcount = 0;
-//int videowave = 0, pfiwave = 0, truepfiwave = 0;
-unsigned long long video = 0, ss_authored = 0;
-unsigned long game_crc32 = 0, xex_crc32 = 0, ss_crc32 = 0, ss_rawcrc32 = 0, ss_staticcrc32 = 0, dmi_crc32 = 0, pfi_crc32 = 0;
-unsigned int ss_num_angles, ss_num_targets, ss_angleaddresses[4], ss_targets[4];
-unsigned long video_crc32 = 0, videoL0_crc32 = 0, videoL1_crc32 = 0;
-//uchar xex_sha1[20] = {0};
-uchar pfi_sha1[20] = {0};
-//video_sha1[20] = {0};
-int ini_dmi_count = 0;
-unsigned long ini_ss = 0, ini_pfi = 0, ini_video = 0, ini_rawss = 0, ini_v0 = 0, ini_v1 = 0, ini_game = 0, ini_xexhash = 0;
-unsigned long ini_dmi[30] = {0};
-int corruptionoffsetcount = 0;
 FILE *fp = NULL, *csvfile = NULL, *inifile = NULL, *xexinifile = NULL;
-int buffermaxdir = MIN_DIR_SECTORS;
-int bufferlevels = MIN_DIR_LEVELS;
-char *fsbuffer;
-char dirprefix[2048] = {0};
-unsigned long long totalbytes = 0;
-unsigned long totalfiles = 0, totaldirectories = 0;
-long long L0capacity = -1;
-int level = 0;
-bool parsingfsfailed = false;
-bool extractimages = false, embedimages = false, noxexiniavailable = false, offlinewarningprinted = false;
-bool ssv2 = false, iso_has_ssv2 = false;
-bool verify_found_bad_pfi_or_video = false;
-bool game_has_ap25 = false, xgd3 = false, topology_was_verified = false;
-bool drive_speed_needs_to_be_reset = false;
-unsigned int ss_replay_table_offset = 0, ss_replay_table_length = 0;
-long layerbreak = -1;
 
 // reset these global vars after every fileloop and parse cmd line again
 void resetvars() {
@@ -5680,167 +5588,6 @@ void domanualpatch(char *argv[]) {
   return;
 }
 
-int docheckdvdfile() {
-    int i;
-    size_t s;
-    FILE *dvdfile;
-    char dvdfilename[strlen(isofilename) + 1];
-    char shortisofilename[strlen(isofilename) + 1];
-    char layerbreakstring[22];
-    memset(dvdfilename, 0, strlen(isofilename) + 1);
-    memset(shortisofilename, 0, strlen(isofilename) + 1);
-    memset(layerbreakstring, 0, 22);
-    sprintf(layerbreakstring, "LayerBreak=%ld", layerbreak);
-    // copy isofilename to dvdfilename for editing
-    memcpy(dvdfilename, isofilename, strlen(isofilename));
-    // replace blah.xxx with blah.dvd
-    if (memcmp(dvdfilename+strlen(dvdfilename)-4, ".", 1) == 0) {
-        memcpy(dvdfilename+strlen(dvdfilename)-4, ".dvd", 4);
-        if (layerbreak <= 0) {
-            color(yellow);
-            printf("Unable to check/create .dvd file because the correct layerbreak to use could\nnot be determined!%s", newline);
-            color(normal);
-            if (verbose) printf("%s", newline);
-          return 1;
-        }
-        // isofilename might be something like "C:\My Documents\imgname.iso" and
-        // we want a string with just imgname.iso to compare or put in the .dvd file
-        for (i=strlen(isofilename)-6;i>-1;i--) {  // work backwards to find the last slash
-            if (isofilename[i] == '\\' || isofilename[i] == '/') {
-                memcpy(shortisofilename, isofilename+i+1, strlen(isofilename)-i-1);  // copy the data after the slash to shortisofilename
-                break;
-            }
-        }
-        // see if the .dvd already exists for this isoname
-        dvdfile = fopen(dvdfilename, "rb");
-        if (dvdfile != NULL) {
-            // it does, so we'll check to make sure it's valid
-            memset(buffer, 0, 2048);
-            if (fgets(buffer, 2048, dvdfile) == NULL) goto dvdfix;
-            if (strlen(buffer) != (strlen(layerbreakstring) + 1) && strlen(buffer) != (strlen(layerbreakstring) + 2)) goto dvdfix;
-            if (memcmp(buffer, layerbreakstring, strlen(layerbreakstring)) == 0) {  // first line of .dvd file must match this
-                // rest of first line should be one newline
-                if (strlen(buffer) == (strlen(layerbreakstring) + 1)) {
-                    if (buffer[strlen(layerbreakstring)] != 0x0D && buffer[strlen(layerbreakstring)] != 0x0A) goto dvdfix;
-                }
-                else if (memcmp(buffer+strlen(layerbreakstring), "\x0D\x0A", 2) != 0) goto dvdfix;
-                // read line 2
-                memset(buffer, 0, 2048);
-                if (fgets(buffer, 2048, dvdfile) == NULL) goto dvdfix;
-                if (strlen(shortisofilename)) {
-                    if (memcmp(shortisofilename, buffer, strlen(shortisofilename)) == 0) {  // second line should match shortisofilename
-                        // rest of second line should be one newline (or nothing)
-                        if (strlen(buffer) == strlen(shortisofilename)) goto dvdmatch;
-                        if ((strlen(buffer) != strlen(shortisofilename) + 1) && (strlen(buffer) != strlen(shortisofilename) + 2)) goto dvdfix;
-                        if (strlen(buffer) == strlen(shortisofilename) + 1) {
-                            if (buffer[strlen(shortisofilename)] != 0x0D && buffer[strlen(shortisofilename)] != 0x0A) goto dvdfix;
-                        }
-                        else if (memcmp(buffer+strlen(shortisofilename), "\x0D\x0A", 2) != 0) goto dvdfix;
-                        goto dvdmatch;
-                    }
-                    else goto dvdfix;
-                }
-                else if (memcmp(isofilename, buffer, strlen(isofilename)) == 0) {  // shortisofilename is blank - second line should match isofilename
-                    // rest of second line should be one newline (or nothing)
-                    if (strlen(buffer) == strlen(isofilename)) goto dvdmatch;
-                    if ((strlen(buffer) != strlen(isofilename) + 1) && (strlen(buffer) != strlen(isofilename) + 2)) goto dvdfix;
-                    if (strlen(buffer) == strlen(isofilename) + 1) {
-                        if (buffer[strlen(isofilename)] != 0x0D && buffer[strlen(isofilename)] != 0x0A) goto dvdfix;
-                    }
-                    else if (memcmp(buffer+strlen(isofilename), "\x0D\x0A", 2) != 0) goto dvdfix;
-                    dvdmatch:
-                    // rest of the file should be only newlines if anything
-                    memset(buffer, 0, 2048);
-                    while (fgets(buffer, 2048, dvdfile) != NULL) {
-                        for (s=0;s<strlen(buffer);s++) {
-                            if (buffer[s] != '\x0D' && buffer[s] != '\x0A') goto dvdfix;
-                        }
-                        memset(buffer, 0, 2048);
-                    }
-                    color(green);
-                    printf("%s is valid%s%s", dvdfilename, newline, newline);
-                    color(normal);
-                    fclose(dvdfile);
-                  return 0;
-                }
-            }
-            dvdfix:
-            if (!writefile) {
-                color(yellow);
-                printf("%s needs to be fixed but writing is disabled!%s", dvdfilename, newline);
-                color(normal);
-                if (verbose) printf("%s", newline);
-              return 1;
-            }
-            color(yellow);
-            printf("%s needs to be fixed%s", dvdfilename, newline);
-            color(normal);
-            // reopen .dvd file and erase contents
-            dvdfile = freopen(dvdfilename, "wb+", dvdfile);
-            if (dvdfile == NULL) {
-                color(red);
-                printf("ERROR: Failed to reopen %s for writing. (%s)%s", dvdfilename, strerror(errno), newline);
-                color(normal);
-              return 1;
-            }
-            // write the correct .dvd file contents to buffer
-            memset(buffer, 0, 2048);
-            strcat(buffer, layerbreakstring);
-            strcat(buffer, "\x0D\x0A");
-            if (strlen(shortisofilename)) strcat(buffer, shortisofilename);
-            else strcat(buffer, isofilename);
-            strcat(buffer, "\x0D\x0A");
-            // write buffer contents to the file
-            initcheckwrite();
-            if (checkwriteandprinterrors(buffer, 1, strlen(buffer), dvdfile, 0, 0, dvdfilename, "Fixing .dvd file") != 0) return 1;
-            donecheckwrite(dvdfilename);
-            color(green);
-            printf("%s was fixed%s%s", dvdfilename, newline, newline);
-            color(normal);
-            fclose(dvdfile);
-          return 0;
-        }
-        else {
-            if (!writefile) {
-                color(yellow);
-                printf("%s needs to be created but writing is disabled!%s", dvdfilename, newline);
-                color(normal);
-                if (verbose) printf("%s", newline);
-              return 1;
-            }
-            // create .dvd file
-            color(yellow);
-            printf("%s needs to be created%s", dvdfilename, newline);
-            color(normal);
-            dvdfile = fopen(dvdfilename, "wb+");
-            if (dvdfile == NULL) {
-                color(red);
-                printf("ERROR: Failed to open %s for writing! (%s)%s", dvdfilename, strerror(errno), newline);
-                color(normal);
-              return 1;
-            }
-            // write the correct .dvd file contents to buffer
-            memset(buffer, 0, 2048);
-            strcat(buffer, layerbreakstring);
-            strcat(buffer, "\x0D\x0A");
-            if (strlen(shortisofilename)) strcat(buffer, shortisofilename);
-            else strcat(buffer, isofilename);
-            strcat(buffer, "\x0D\x0A");
-            // write buffer contents to the file
-            initcheckwrite();
-            if (checkwriteandprinterrors(buffer, 1, strlen(buffer), dvdfile, 0, 0, dvdfilename, "Creating .dvd file") != 0) return 1;
-            donecheckwrite(dvdfilename);
-            color(green);
-            printf("%s was created%s%s", dvdfilename, newline, newline);
-            color(normal);
-            fclose(dvdfile);
-          return 0;
-        }
-    }
-    if (debug) printf("docheckdvdfile r1 - isofilename: %s, strlen(isofilename) = %u, dvdfilename: %s, strlen(dvdfilename) = %u%s", isofilename, (unsigned int) strlen(isofilename), dvdfilename, (unsigned int) strlen(dvdfilename), newline);
-  return 1;  // isofilename does not end with .xxx, it could be a device like /dev/cdrom so we won't make a .dvd file
-}
-
 long long getfilesize(FILE *fp) {
     // store starting position so we can reset it
     long long startoffset = (long long) myftello(fp);
@@ -6516,7 +6263,7 @@ int checkreadandprinterrors(void *ptr, size_t size, size_t nmemb, FILE *stream, 
 }
 
 int checkwriteandprinterrors(const void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset,
-                             char *name, char *action) {
+                             const char *name, const char *action) {
     if (fwrite(ptr, size, nmemb, stream) == nmemb) return 0;
     else {
         if (writeerrorstotal == 0) {

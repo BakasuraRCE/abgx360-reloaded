@@ -23,6 +23,57 @@
     #define LL "I64"
 #endif
 
+
+#define PFI_HEX 1
+#define DMI_HEX 2
+
+#define WEB_INIDIR           1
+#define WEB_CSV              2
+#define WEB_DAT              3
+#define WEB_TOPOLOGY         4
+#define WEB_STEALTHDIR       5
+#define WEB_AUTOUPLOAD       6
+#define WEB_UNVERIFIEDINIDIR 7
+//#define WEB_AP25AUTOUPLOAD   8
+//#define WEB_DAE              9
+
+
+#define XEX_INI                  1
+#define SSXEX_INI                2
+#define SSXEX_INI_FROM_XEX_INI   3
+#define UNVERIFIED_INI           4
+#define SS_FILE                  5
+#define SS_FILE_OK_IF_MISSING    6
+#define STEALTH_FILE             7
+#define GIANT_VIDEO_FILE         8
+#define SMALL_VIDEO_FILE         9
+#define TOP_BIN_FILE            10
+#define TOP_HASH_FILE           11
+
+#define	MAX_FILENAMES 100000
+
+// MAX_DIR_LEVELS * MAX_DIR_SECTORS * 2048 will be the maximum size of fsbuffer during execution
+#define MIN_DIR_SECTORS 20
+#define MAX_DIR_SECTORS 300  // needs to be an even multiple of MIN_DIR_SECTORS; largest observed was cod4 (53)
+#define MIN_DIR_LEVELS  10
+#define MAX_DIR_LEVELS  150  // needs to be an even multiple of MIN_DIR_LEVELS; largest observed was dark messiah (22)
+
+#define WOW_THATS_A_LOT_OF_RAM 134217728  // 128 MB
+
+// values for extended c/r
+#define NUM_SS_CR_SAMPLES   51  // should be an odd number, may cause poor formatting of bar graphs if greater than 59
+//#define NUM_AP25_CR_SAMPLES 31  // should be an odd number, may cause poor formatting of bar graphs if greater than 57
+//#define AP25_HIGH_ANGLE     9   // don't change this
+//#define AP25_MEDIUM_ANGLE   5
+#define SS_TOLERANCE        15
+#define SS_HIGH_ANGLE       9
+#define SS_MEDIUM_ANGLE     5
+
+//#define DAE_HEADER_SIZE 336
+//#define DAE_SEARCH_MID  0
+//#define DAE_SEARCH_DID  1
+//#define DAE_SEARCH_TID  2
+
 #define BIGBUF_SIZE 32768  // 32 KB, changing this could cause some problems
 
 #define NUM_CURRENTPFIENTRIES   15  // update this when adding new pfi entries
@@ -189,3 +240,46 @@ extern long longreturnvalue;
 extern unsigned long sizeoverbuffer, bufferremainder;
 
 extern char *isofilename = NULL;
+
+// global vars that might need to be reset after every fileloop
+extern bool writefile = true;
+extern bool checkgamecrcalways = false, checkgamecrcnever = false, gamecrcfailed = false, verifyfailed = false;
+extern bool stealthfailed = false, stealthuncertain = false, xbox1iso = false;
+extern bool ss_stealthfailed = false, dmi_stealthfailed = false, pfi_stealthfailed = false, video_stealthfailed = false;
+extern bool dmi_stealthuncertain = false, ss_stealthuncertain = false, pfi_stealthuncertain = false, video_stealthuncertain = false;
+extern bool xex_foundmediaid = false, xex_founddiscprofileid = false, foundtitleid = false, foundregioncode = false, foundgamename = false;
+extern bool ss_foundtimestamp = false, usercancelledgamecrc = false;
+extern bool pfi_alreadydumped = false, pfi_foundsectorstotal = false, pfiexception = false;
+extern bool wtfhex = false, checkssbin = false;
+extern bool justastealthfile = false, isotoosmall = false;
+extern bool drtfucked = false, fixedss = false, fixedtopology = false; //fixedap25 = false;
+extern bool printstderr = false, rebuildfailed = false, curlheaderprinted = false;
+extern int unrecognizedRTcount = 0;
+//int videowave = 0, pfiwave = 0, truepfiwave = 0;
+extern unsigned long long video = 0, ss_authored = 0;
+extern unsigned long game_crc32 = 0, xex_crc32 = 0, ss_crc32 = 0, ss_rawcrc32 = 0, ss_staticcrc32 = 0, dmi_crc32 = 0, pfi_crc32 = 0;
+extern unsigned int ss_num_angles, ss_num_targets, ss_angleaddresses[4], ss_targets[4];
+extern unsigned long video_crc32 = 0, videoL0_crc32 = 0, videoL1_crc32 = 0;
+//uchar xex_sha1[20] = {0};
+uchar pfi_sha1[20] = {0};
+//video_sha1[20] = {0};
+extern int ini_dmi_count = 0;
+extern unsigned long ini_ss = 0, ini_pfi = 0, ini_video = 0, ini_rawss = 0, ini_v0 = 0, ini_v1 = 0, ini_game = 0, ini_xexhash = 0;
+extern unsigned long ini_dmi[30] = {0};
+extern int corruptionoffsetcount = 0;
+extern int buffermaxdir = MIN_DIR_SECTORS;
+extern int bufferlevels = MIN_DIR_LEVELS;
+extern char *fsbuffer;
+extern char dirprefix[2048] = {0};
+extern unsigned long long totalbytes = 0;
+extern unsigned long totalfiles = 0, totaldirectories = 0;
+extern long long L0capacity = -1;
+extern int level = 0;
+extern bool parsingfsfailed = false;
+extern bool extractimages = false, embedimages = false, noxexiniavailable = false, offlinewarningprinted = false;
+extern bool ssv2 = false, iso_has_ssv2 = false;
+extern bool verify_found_bad_pfi_or_video = false;
+extern bool game_has_ap25 = false, xgd3 = false, topology_was_verified = false;
+extern bool drive_speed_needs_to_be_reset = false;
+extern unsigned int ss_replay_table_offset = 0, ss_replay_table_length = 0;
+extern long layerbreak = -1;
