@@ -1,8 +1,6 @@
 #pragma once
 
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-    #define WIN32
-#endif
+#include "macros.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -10,6 +8,7 @@
 #ifdef WIN32
     #include <Windows.h>      // for GetTickCount, SetConsoleTextAttribute, ReadFile, RegOpenKeyEx, RegQueryValueEx, CreateFile, SetFilePointerEx, SetEndOfFile, ...
 #endif
+
 
 #ifdef __cplusplus
     #define EXTERNC extern "C"

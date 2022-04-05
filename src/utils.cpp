@@ -1,14 +1,14 @@
 #include "utils.h"
-#include "global.h"
 
 extern "C" {
     // abgx360.c
 }
 
 int processdirectory(char *rootdir, char **filenames, bool *blockdevice, bool matchonly, int matchfiles, char **matchfilelist, char *s) {
-    printf("CRITICAL: Must refactor this methodi n Python");
+#ifdef WIN32
+    printf("CRITICAL: Must refactor this method in Python");
     return 1;
-    /*
+#else
     int i, len_ent;
     int len_root = strlen(rootdir) + 1;  // leave room for possible slash
     char *path = new char[len_root+1]; // char path[len_root+1];  // leave room for terminating null
@@ -80,5 +80,5 @@ int processdirectory(char *rootdir, char **filenames, bool *blockdevice, bool ma
         color(normal);
     }
   return 0;
-  */
+#endif
 }

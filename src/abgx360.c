@@ -8,16 +8,13 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 
 ******************************************************************************/
 
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-    #define WIN32
-#endif
+#include "global.h"
+#include "macros.h"
 
 #define _LARGEFILE_SOURCE
 /* #define _LARGEFILE64_SOURCE https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #define _FILE_OFFSET_BITS 64
 #define _GNU_SOURCE
-
-#include "global.h"
 
 #include <stdio.h>     // standard i/o
 #include <stddef.h>    // for offsetof
@@ -10295,7 +10292,7 @@ int mystrncasecmp(const char* str1, const char* str2, size_t n) {
 
 off_t myftello(FILE *stream) {
     #ifdef WIN32
-        return ftello64(stream);
+        return _ftelli64(stream);
     #else
         return ftello(stream);
     #endif
@@ -10305,7 +10302,7 @@ int myfseeko(FILE *stream, off_t offset, int whence) {
     #ifdef WIN32
       //if ((dvdarg || riparg) && stream == NULL) return 0;
       if (dvdarg && stream == NULL) return 0;
-      return fseeko64(stream, offset, whence);
+      return _fseeki64(stream, offset, whence);
     #else
         return fseeko(stream, offset, whence);
     #endif

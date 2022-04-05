@@ -11,6 +11,7 @@ include_directories(src)
 
 # Add executable
 add_executable(${target}
+        src/macros.h
         src/global.h
         src/utils.cpp
         src/utils.h
