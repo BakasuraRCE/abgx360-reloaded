@@ -12568,7 +12568,7 @@ int findunicodedelimiter(unsigned char *string, int length, int maxlength, bool 
     if (html || maxlength <= 0) return length;
     unsigned long codepoint;
     typedef struct {unsigned char x; int i;} _chars;
-    _chars* chars = malloc((maxlength + 20) * sizeof(*chars)); // +20 to be safe
+    _chars *chars = malloc((maxlength + 20) * sizeof(*chars)); // +20 to be safe
 
     while (i < length && j <= maxlength) {
         if (string[i] == 0x00) break;
@@ -13139,7 +13139,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     char imagedirpath[2048] = {0};
-    imagestruct embedable_images[resource.num_images];
+    imagestruct *embedable_images = malloc(resource.num_images * sizeof(*embedable_images)); // imagestruct embedable_images[resource.num_images];
     if (extractimages) {
         if (imagedirmissing || homeless) {
             color(yellow);
@@ -13986,7 +13986,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
     
     long long englishlanguageindex = -1LL, defaultlanguageindex = -1LL, userlanguageindex = -1LL;
     bool found_nonunicodelanguage = false;
-    languagestruct language[resource.num_languages ? resource.num_languages : 1];  // don't declare a 0 size array
+    languagestruct *language = malloc((resource.num_languages ? resource.num_languages : 1) * sizeof(*language)); // languagestruct language[resource.num_languages ? resource.num_languages : 1];  // don't declare a 0 size array
     if (resource.num_languages) {
         // save language entries and make sure they're valid before incrementing what will be the real number of languages (which is what really saves them)
         // also save indices for english and the default language as well as the user's preferred language if they entered one
@@ -14053,7 +14053,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     
-    achievementstruct achievement[resource.num_achievements ? resource.num_achievements : 1];  // don't declare a 0 size array
+    achievementstruct *achievement = malloc((resource.num_achievements ? resource.num_achievements : 1) * sizeof(*achievement)); // achievementstruct achievement[resource.num_achievements ? resource.num_achievements : 1];  // don't declare a 0 size array
     if (resource.num_achievements) {
         // get achievement entries
         for (m=0;m<resource.num_achievements;m++) {
@@ -14078,7 +14078,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     
-    avatarawardstruct avataraward[resource.num_avatarawards ? resource.num_avatarawards : 1];  // don't declare a 0 size array
+    avatarawardstruct *avataraward = malloc((resource.num_avatarawards ? resource.num_avatarawards : 1) * sizeof(*avataraward)); // avatarawardstruct avataraward[resource.num_avatarawards ? resource.num_avatarawards : 1];  // don't declare a 0 size array
     if (resource.num_avatarawards) {
         // get avatar award entries
         for (m=0;m<resource.num_avatarawards;m++) {
@@ -14137,8 +14137,8 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         unsigned short s;
         unsigned short real_num_strings = 0;
         unsigned short num_strings = getwordmsb(resourcebuffer+language[displaylanguageindex].offset+12);
-        struct { unsigned short stringid, length; unsigned long offset; }
-        strings[num_strings];
+        typedef struct { unsigned short stringid, length; unsigned long offset; } _strings;
+        _strings *strings = malloc(num_strings * sizeof(*strings));
         m = language[displaylanguageindex].offset+14;
         n = language[displaylanguageindex].offset + language[displaylanguageindex].size;
         for (s=0;s<num_strings;s++) {
