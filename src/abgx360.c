@@ -5823,9 +5823,9 @@ FILE *openstealthfile(char *stealthfilename, char *localdir, char *webdir, int t
         // try to find the stealth file online, this will also check locally whether the file is downloaded or not
         printf("%sLooking for %s in %s%s", sp5, stealthfilename, location, newline);
         memset(curlerrorbuffer, 0, CURL_ERROR_SIZE+1);
-        char *fullurl = calloc(sizeof(char) * (strlen(webdir) + strlen(stealthfilename) + 1)); // char fullurl[strlen(webdir) + strlen(stealthfilename) + 1];
+        char *fullurl = calloc(strlen(webdir) + strlen(stealthfilename) + 1, sizeof(char)); // char fullurl[strlen(webdir) + strlen(stealthfilename) + 1];
         sprintf(fullurl, "%s%s", webdir, stealthfilename);
-        char *progressdata = calloc(sizeof(char) * (13 + strlen(stealthfilename) + 1)); // char progressdata[13 + strlen(stealthfilename)];
+        char *progressdata = calloc(13 + strlen(stealthfilename) + 1, sizeof(char)); // char progressdata[13 + strlen(stealthfilename)];
         sprintf(progressdata, "Downloading %s", stealthfilename);
         curl_easy_reset(curl);
         if (type == SS_FILE || type == SS_FILE_OK_IF_MISSING || type == STEALTH_FILE || type == SMALL_VIDEO_FILE || type == TOP_BIN_FILE) {
@@ -6572,7 +6572,7 @@ int rebuildiso(char *filename) {
         char randomext[16];
         // generate a filename for the rebuilt iso file that can't be opened for reading
         // (hopefully that means it doesn't exist but we should probably check errno to make sure)
-        char *rebuiltisofilename = calloc(sizeof(char) * strlen(filename) + 16 + 1); // char rebuiltisofilename[strlen(filename) + 16];
+        char *rebuiltisofilename = calloc(strlen(filename) + 16 + 1, sizeof(char)); // char rebuiltisofilename[strlen(filename) + 16];
         memset(rebuiltisofilename, 0, strlen(filename) + 16);
         strcpy(rebuiltisofilename, filename);
         int nametype = 3;  // if the original filename is too short to check for *.???, we'll just use nametype 3 (see below)
@@ -8024,7 +8024,7 @@ int doautoupload(char *argv[], bool upload_ss_only) {
     // write ini file
     int userstealthpathlength = 0;
     if (!homeless) userstealthpathlength = strlen(homedir) + strlen(abgxdir) + strlen(userstealthdir);
-    char *autouploadinifilename = calloc(sizeof(char) * (userstealthpathlength + 21));  // char autouploadinifilename[userstealthpathlength + 21];  // ini is 20 chars + 1 for null byte
+    char *autouploadinifilename = calloc(userstealthpathlength + 21, sizeof(char));  // char autouploadinifilename[userstealthpathlength + 21];  // ini is 20 chars + 1 for null byte
     memset(autouploadinifilename, 0, userstealthpathlength + 21);
     if (!homeless) sprintf(autouploadinifilename, "%s%s%s%08lX%08lX.ini", homedir, abgxdir, userstealthdir, ss_crc32, xex_crc32);
     else sprintf(autouploadinifilename, "%08lX%08lX.ini", ss_crc32, xex_crc32);
@@ -8035,7 +8035,7 @@ int doautoupload(char *argv[], bool upload_ss_only) {
       return 1;
     }
     // extract pfi
-    char *autouploadpfifilename = calloc(sizeof(char) * (userstealthpathlength + 17)); // char autouploadpfifilename[userstealthpathlength + 17];  // 16 + 1
+    char *autouploadpfifilename = calloc(userstealthpathlength + 17, sizeof(char)); // char autouploadpfifilename[userstealthpathlength + 17];  // 16 + 1
     memset(autouploadpfifilename, 0, userstealthpathlength + 17);
     if (!homeless) sprintf(autouploadpfifilename, "%s%s%sPFI_%08lX.bin", homedir, abgxdir, userstealthdir, pfi_crc32);
     else sprintf(autouploadpfifilename, "PFI_%08lX.bin", pfi_crc32);
@@ -8046,7 +8046,7 @@ int doautoupload(char *argv[], bool upload_ss_only) {
       return 1;
     }
     // extract dmi
-    char *autouploaddmifilename = calloc(sizeof(char) * (userstealthpathlength + 17)); // char autouploaddmifilename[userstealthpathlength + 17];  // 16 + 1
+    char *autouploaddmifilename = calloc(userstealthpathlength + 17, sizeof(char)); // char autouploaddmifilename[userstealthpathlength + 17];  // 16 + 1
     memset(autouploaddmifilename, 0, userstealthpathlength + 17);
     if (!homeless) sprintf(autouploaddmifilename, "%s%s%sDMI_%08lX.bin", homedir, abgxdir, userstealthdir, dmi_crc32);
     else sprintf(autouploaddmifilename, "DMI_%08lX.bin", dmi_crc32);
@@ -8057,7 +8057,7 @@ int doautoupload(char *argv[], bool upload_ss_only) {
       return 1;
     }
     // extract ss (or preferably use median ss created from extended c/r routines)
-    char *autouploadssfilename = calloc(sizeof(char) * (userstealthpathlength + 16)); // char autouploadssfilename[userstealthpathlength + 16];  // 15 + 1
+    char *autouploadssfilename = calloc(userstealthpathlength + 16, sizeof(char)); // char autouploadssfilename[userstealthpathlength + 16];  // 15 + 1
     memset(autouploadssfilename, 0, userstealthpathlength + 16);
     if (!homeless) sprintf(autouploadssfilename, "%s%s%sSS_%08lX.bin", homedir, abgxdir, userstealthdir, ss_crc32);
     else sprintf(autouploadssfilename, "SS_%08lX.bin", ss_crc32);
@@ -8094,7 +8094,7 @@ int doautoupload(char *argv[], bool upload_ss_only) {
     struct curl_httppost *formpost = NULL;
     struct curl_httppost *lastptr = NULL;
     
-    char *curloutputfilename = calloc(sizeof(char) * (strlen(homedir) + strlen(abgxdir) + 8 + 1)); // char curloutputfilename[strlen(homedir) + strlen(abgxdir) + 8 + 1];
+    char *curloutputfilename = calloc(strlen(homedir) + strlen(abgxdir) + 8 + 1, sizeof(char)); // char curloutputfilename[strlen(homedir) + strlen(abgxdir) + 8 + 1];
     memset(curloutputfilename, 0, strlen(homedir) + strlen(abgxdir) + 8 + 1);
     if (!homeless) {
         strcat(curloutputfilename, homedir);
