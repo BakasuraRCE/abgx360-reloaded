@@ -12567,7 +12567,9 @@ int findunicodedelimiter(unsigned char *string, int length, int maxlength, bool 
     int i = 0, j = 0, a, b, delim = length;
     if (html || maxlength <= 0) return length;
     unsigned long codepoint;
-    struct {unsigned char x; int i;} chars[maxlength + 20];  // +20 to be safe
+    typedef struct {unsigned char x; int i;} _chars;
+    _chars* chars = malloc((maxlength + 20) * sizeof(*chars)); // +20 to be safe
+
     while (i < length && j <= maxlength) {
         if (string[i] == 0x00) break;
         if (string[i] > 0x7F) {
@@ -12834,17 +12836,17 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
             fclose(defaultspa);
         }
     }
-    struct imagestruct {
+    typedef struct {
         unsigned long imageid,
         offset,
         size;
-    };
-    struct languagestruct {
+    } imagestruct;
+    typedef struct {
         unsigned long langid,
         offset,
         size;
-    };
-    struct achievementstruct {
+    } languagestruct;
+    typedef struct {
         unsigned short achievementid,
         nameid,
         achievedid,
@@ -12852,15 +12854,15 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         gamerscore,
         type;
         unsigned long imageid;
-    };
-    struct avatarawardstruct {
+    } achievementstruct;
+    typedef struct {
         unsigned short avatarawardid,
         nameid,
         achievedid,
         unachievedid;
         unsigned long imageid;
-    };
-    struct titleresourcestruct {
+    } avatarawardstruct;
+    typedef struct {
         bool foundfeatures,
         camera, coop, customsoundtrack, dolby51, harddriveenhanced, harddriverequired, liveaware,
         liveclans, livecoop, livedownloads, livefriends, livemessaging, livemultiplayer, livescoreboard,
@@ -12890,8 +12892,8 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         XTHD_offset, XTHD_size,
         XSRC_offset, XSRC_size,
         XGAA_offset, XGAA_size;
-    };
-    struct titleresourcestruct resource = {
+    } titleresourcestruct;
+    titleresourcestruct resource = {
         false,                                            // found features
         false, false, false, false, false, false, false,  // misc supported features
         false, false, false, false, false, false, false,  // misc supported features
@@ -13137,7 +13139,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     char imagedirpath[2048] = {0};
-    struct imagestruct embedable_images[resource.num_images];
+    imagestruct embedable_images[resource.num_images];
     if (extractimages) {
         if (imagedirmissing || homeless) {
             color(yellow);
@@ -13984,7 +13986,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
     
     long long englishlanguageindex = -1LL, defaultlanguageindex = -1LL, userlanguageindex = -1LL;
     bool found_nonunicodelanguage = false;
-    struct languagestruct language[resource.num_languages ? resource.num_languages : 1];  // don't declare a 0 size array
+    languagestruct language[resource.num_languages ? resource.num_languages : 1];  // don't declare a 0 size array
     if (resource.num_languages) {
         // save language entries and make sure they're valid before incrementing what will be the real number of languages (which is what really saves them)
         // also save indices for english and the default language as well as the user's preferred language if they entered one
@@ -14051,7 +14053,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     
-    struct achievementstruct achievement[resource.num_achievements ? resource.num_achievements : 1];  // don't declare a 0 size array
+    achievementstruct achievement[resource.num_achievements ? resource.num_achievements : 1];  // don't declare a 0 size array
     if (resource.num_achievements) {
         // get achievement entries
         for (m=0;m<resource.num_achievements;m++) {
@@ -14076,7 +14078,7 @@ void parsetitleidresource(unsigned char *resourcebuffer, unsigned long resources
         }
     }
     
-    struct avatarawardstruct avataraward[resource.num_avatarawards ? resource.num_avatarawards : 1];  // don't declare a 0 size array
+    avatarawardstruct avataraward[resource.num_avatarawards ? resource.num_avatarawards : 1];  // don't declare a 0 size array
     if (resource.num_avatarawards) {
         // get avatar award entries
         for (m=0;m<resource.num_avatarawards;m++) {
