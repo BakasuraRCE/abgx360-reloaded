@@ -1,5 +1,6 @@
 #include "utils.h"
+#include "abgx360.h"
 
-extern "C" {
-// abgx360.c
+void ok1(int ok) {
+  printf("ok global: %d, ok: %d", mediumangledev_value, ok);
 }

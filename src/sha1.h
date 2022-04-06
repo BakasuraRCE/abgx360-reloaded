@@ -49,7 +49,7 @@ void sha1_hmac(uchar *key, uint keylen, uchar *buf, uint buflen,
 /*
  * Checkup routine
  */
-int sha1_self_test(char *newline);
+int sha1_self_test(const char *newline);
 
 #ifdef __cplusplus
 }

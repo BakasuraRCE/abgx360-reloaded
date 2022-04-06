@@ -386,7 +386,7 @@ static uchar sha1_test_sum[3][20] =
 /*
  * Checkup routine
  */
-int sha1_self_test(char *newline) {
+int sha1_self_test(const char *newline) {
     int i, j;
     uchar buf[1000];
     uchar sha1sum[20];

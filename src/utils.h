@@ -1,7 +1,5 @@
 #pragma once
 
-#include "macros.h"
-
 #include <stdio.h>
 #include <string.h>
 
@@ -14,5 +12,7 @@
 #else
   #define EXTERNC
 #endif
+
+EXTERNC void ok1(int ok);
 
 #undef EXTERNC

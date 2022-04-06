@@ -1,93 +1,18 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "macros.h"
+#include "abgx360.h"
 
 #include <stdbool.h>   // true/false macro for bools
 #include <stddef.h>    // for offsetof
 
-#ifdef WIN32
-  #include <Windows.h>
-  #include <ntddstor.h> // device i/o stuff
-  #include <ntddscsi.h> // SCSI_PASS_THROUGH_DIRECT
+#if defined(_WIN32) || defined(__CLION_IDE__)
+#include <Windows.h>
+#include <ntddstor.h> // device i/o stuff
+#include <ntddscsi.h> // SCSI_PASS_THROUGH_DIRECT
 
 char winbuffer[2048];
 HANDLE hDevice = INVALID_HANDLE_VALUE;
-#define mkdir(a,b) _mkdir(a)
-//#define strcasecmp(a,b) _stricmp(a,b)
-//#define strncasecmp(a,b,c) _strnicmp(a,b,c)
-//#define fseeko(a,b,c) myfseeko64(a,b,c)
-//#define ftello(a) ftello64(a)
-  #define DATA_NONE SCSI_IOCTL_DATA_UNSPECIFIED
-  #define DATA_IN   SCSI_IOCTL_DATA_IN
-  #define DATA_OUT  SCSI_IOCTL_DATA_OUT
-  #define LL "I64"
 #endif
-
-#define PFI_HEX 1
-#define DMI_HEX 2
-
-#define WEB_INIDIR           1
-#define WEB_CSV              2
-#define WEB_DAT              3
-#define WEB_TOPOLOGY         4
-#define WEB_STEALTHDIR       5
-#define WEB_AUTOUPLOAD       6
-#define WEB_UNVERIFIEDINIDIR 7
-//#define WEB_AP25AUTOUPLOAD   8
-//#define WEB_DAE              9
-
-
-#define XEX_INI                  1
-#define SSXEX_INI                2
-#define SSXEX_INI_FROM_XEX_INI   3
-#define UNVERIFIED_INI           4
-#define SS_FILE                  5
-#define SS_FILE_OK_IF_MISSING    6
-#define STEALTH_FILE             7
-#define GIANT_VIDEO_FILE         8
-#define SMALL_VIDEO_FILE         9
-#define TOP_BIN_FILE            10
-#define TOP_HASH_FILE           11
-
-#define    MAX_FILENAMES 100000
-
-// MAX_DIR_LEVELS * MAX_DIR_SECTORS * 2048 will be the maximum size of fsbuffer during execution
-#define MIN_DIR_SECTORS 20
-#define MAX_DIR_SECTORS 300  // needs to be an even multiple of MIN_DIR_SECTORS; largest observed was cod4 (53)
-#define MIN_DIR_LEVELS  10
-#define MAX_DIR_LEVELS  150  // needs to be an even multiple of MIN_DIR_LEVELS; largest observed was dark messiah (22)
-
-#define WOW_THATS_A_LOT_OF_RAM 134217728  // 128 MB
-
-// values for extended c/r
-#define NUM_SS_CR_SAMPLES   51  // should be an odd number, may cause poor formatting of bar graphs if greater than 59
-//#define NUM_AP25_CR_SAMPLES 31  // should be an odd number, may cause poor formatting of bar graphs if greater than 57
-//#define AP25_HIGH_ANGLE     9   // don't change this
-//#define AP25_MEDIUM_ANGLE   5
-#define SS_TOLERANCE        15
-#define SS_HIGH_ANGLE       9
-#define SS_MEDIUM_ANGLE     5
-
-//#define DAE_HEADER_SIZE 336
-//#define DAE_SEARCH_MID  0
-//#define DAE_SEARCH_DID  1
-//#define DAE_SEARCH_TID  2
-
-#define BIGBUF_SIZE 32768  // 32 KB, changing this could cause some problems
-
-#define NUM_CURRENTPFIENTRIES   15  // update this when adding new pfi entries
-#define NUM_CURRENTVIDEOENTRIES 21 // update this when adding new video entries
-
-#define NUM_CURRENTAP25MEDIAIDS       25  // update this when adding new AP25 media ids for discs that have no AP25 flag in the default.xex
-#define NUM_CURRENTAP25TITLEIDS        2  // update this when adding new AP25 title ids for discs that have no AP25 flag in the default.xex
-#define NUM_CURRENTAP25DISCPROFILEIDS 11  // update this when adding new AP25 disc profile ids
-//#define NUM_CURRENTDAEVERSIONS        5   // update this when adding new DAE versions and descriptions
-
-#define TOPOLOGY_SIZE 26624
 
 // update version values here
 const char *headerversion = "v1.0.7";
@@ -117,12 +42,13 @@ unsigned short xgd3_stealth_padding_bitfield = 0xFFFF;
 
 // local directories
 char homedir[2048];
-#ifdef WIN32
-const char *abgxdir =        "\\abgx360\\";
-const char *stealthdir =     "StealthFiles\\";
+#if defined(_WIN32) || defined(__CLION_IDE__)
+const char *abgxdir = "\\abgx360\\";
+const char *stealthdir = "StealthFiles\\";
 const char *userstealthdir = "UserStealthFiles\\";
-const char *imagedir =       "Images\\";
-#else
+const char *imagedir = "Images\\";
+#endif
+#if defined(__linux__) || defined(__APPLE__) || defined(__CLION_IDE__)
 const char *abgxdir = "/.abgx360/";
 const char *stealthdir = "StealthFiles/";
 const char *userstealthdir = "UserStealthFiles/";
@@ -141,7 +67,7 @@ const char *autouploadwebaddress = "http://abgx360.hadzz.com/Control/AutoUpload.
 //char *ap25autouploadwebaddress = "http://abgx360.net/Apps/Control/AP25AutoUpload.php";  // form for submitting AP25 AutoUploads
 //char *webdae = "http://abgx360.net/Apps/Stealth360/dae.bin";                            // http path to dae.bin
 
-struct mediaidshort { unsigned char mediaid[4]; } mediaidshort;
+//struct mediaidshort { unsigned char mediaid[4]; } mediaidshort;
 struct mediaidshort currentap25mediaids[NUM_CURRENTAP25MEDIAIDS];
 struct mediaidshort *mostrecentap25mediaids;
 struct mediaidshort *datfileap25mediaids;
@@ -181,7 +107,7 @@ bool matchonly = false, testing = false, testingdvd = false;
 bool localonly = false, recursesubdirs = false, clobber = false;
 bool showachievements = false, hidesecretachievements = false, showavatarawards = false, unicode = false, imagedirmissing = false;
 bool skiplayerboundaryinfo = false, devkey = false, trustssv2angles = true, useinstalldir = false;
-struct badshit { unsigned char c[21], d[21], data[21]; int count; char *explanation; } badshit;
+//struct badshit { unsigned char c[21], d[21], data[21]; int count; char *explanation; } badshit;
 char unrecognizedRTarray[21];
 // don't forget to add new args to the list before stat()
 int truncatearg = 0, userregionarg = 0, folderarg = 0, matcharg = 0, specialarg = 0, readretryarg = 0;
@@ -207,9 +133,10 @@ const char *green = "\033[1;32;40m", *yellow = "\033[1;33;40m", *red = "\033[1;3
 const char *darkblue = "\033[0;34;40m", *white = "\033[1;37;40m", *arrow = "\033[1;34;40m", *box = "\033[1;34;40m", *normal = "\033[0;37;40m";
 const char *wtfhexcolor = "\033[1;31;40m", *wtfcharcolor = "\033[1;37;41m", *reset = "\033[0m", *brown = "\033[0;33;40m", *filename = "\033[0;37;44m";
 const char *blackonyellow = "\033[0;30;43m", *blackonred = "\033[0;30;41m";
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__CLION_IDE__)
 const char *hexoffsetcolor = "\033[0;37;40m", *darkgray = "\033[0;37;40m";  // can't do dark gray apparently (shows completely black) so just use normal gray
-#else
+#endif
+#if defined(__linux__) || defined(_WIN32) || defined(__CLION_IDE__)
 const char *hexoffsetcolor = "\033[1;30;40m", *darkgray = "\033[1;30;40m";
 #endif
 const char *newline = "\n", *quotation = "\"", *ampersand = "&", *lessthan = "<", *greaterthan = ">", *numbersign = "#";
@@ -269,7 +196,3 @@ bool game_has_ap25 = false, xgd3 = false, topology_was_verified = false;
 bool drive_speed_needs_to_be_reset = false;
 unsigned int ss_replay_table_offset = 0, ss_replay_table_length = 0;
 long layerbreak = -1;
-
-#ifdef __cplusplus
-}
-#endif

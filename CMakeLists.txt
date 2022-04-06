@@ -15,10 +15,10 @@ include_directories(src)
 
 # Add executable
 add_executable(${target}
-        src/macros.h
-        src/global.h
-        src/utils.cpp
         src/utils.h
+        src/utils.cpp
+        src/abgx360.h
+        src/variables.h
         src/abgx360.c
         src/rijndael-alg-fst.c
         src/rijndael-alg-fst.h

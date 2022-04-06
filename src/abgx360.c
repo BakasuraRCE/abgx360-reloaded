@@ -8,8 +8,13 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 
 ******************************************************************************/
 
-#include "global.h"
-#include "macros.h"
+#include "abgx360.h"
+#include "variables.h"
+#include "utils.h"
+
+#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
+  #define WIN32
+#endif
 
 #define _LARGEFILE_SOURCE
 /* #define _LARGEFILE64_SOURCE https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
@@ -17,8 +22,8 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 #define _GNU_SOURCE
 
 #include <stdio.h>     // standard i/o
-#include <stddef.h>    // for offsetof
-#include <stdbool.h>   // true/false macro for bools
+//#include <stddef.h>    // for offsetof
+//#include <stdbool.h>   // true/false macro for bools
 #include <stdint.h>    // for int32_t
 #include <stdlib.h>    // standard library definitions
 #include <string.h>    // for string operations
@@ -122,6 +127,7 @@ Copyright 2008-2012 by Seacrest <Seacrest[at]abgx360[dot]net>
 
 #endif  // ifdef WIN32
 
+/* Initialize variables */
 struct waveentry { unsigned long crc; uchar sha1[20]; char *description; bool hosted; } waveentry;
 struct waveentry currentpfientries[NUM_CURRENTPFIENTRIES];
 struct waveentry *mostrecentpfientries;
@@ -6312,7 +6318,7 @@ int randomnumber(int x, int y) {
   return (rand() % (y - x + 1) + x);
 }
 
-void deletestealthfile(char *stealthfilename, char *localdir, bool videofile) {
+void deletestealthfile(char *stealthfilename, const char *localdir, bool videofile) {
     #ifdef WIN32
         if (videofile && strlen(installdirvideofilepath)) {
             // we just opened a video file from the old installdir/StealthFiles and now we need to delete it
@@ -6333,7 +6339,6 @@ void deletestealthfile(char *stealthfilename, char *localdir, bool videofile) {
         else printf("deleting stealth file '%s' from localdir '%s' (fullpath: '%s')%s", stealthfilename, localdir, fullpath, newline);
     }
     remove(fullpath);
-  return;
 }
 
 int openinifromxexini() {
