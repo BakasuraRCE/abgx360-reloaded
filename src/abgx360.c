@@ -178,7 +178,7 @@ unsigned long getzeros(unsigned char* ptr, unsigned long firstbyte, unsigned lon
 bool lookslikepfi(unsigned char* pfi), lookslike360dmi(unsigned char* dmi), lookslikexbox1dmi(unsigned char* dmi);
 bool lookslike360ss(unsigned char* ss), lookslikexbox1ss(unsigned char* ss);
 int checkreadandprinterrors(void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset, char *name, char *action);
-int checkwriteandprinterrors(const void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset, char *name, char *action);
+int checkwriteandprinterrors(const void *ptr, size_t size, size_t nmemb, FILE *stream, unsigned long loop, unsigned long long startoffset, const char *name, const char *action);
 void initcheckread(), donecheckread(char *name);
 long long getfilesize(FILE *fp);
 int docheckgamecrc();
