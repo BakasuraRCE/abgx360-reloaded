@@ -4,7 +4,11 @@ project(${target})
 
 set(CMAKE_CXX_STANDARD 23)
 
-find_package(CURL CONFIG REQUIRED)
+if (UNIX)
+    find_package(CURL REQUIRED)
+else ()
+    find_package(CURL CONFIG REQUIRED)
+endif ()
 find_package(ZLIB REQUIRED)
 
 include_directories(src)
@@ -25,8 +29,8 @@ add_executable(${target}
         src/mspack/mspack.h
         src/mspack/system.c
         src/mspack/system.h)
-if(UNIX)
-        target_link_libraries(${target} PRIVATE m)
-endif()
+if (UNIX)
+    target_link_libraries(${target} PRIVATE m)
+endif ()
 target_link_libraries(${target} PRIVATE CURL::libcurl)
 target_link_libraries(${target} PRIVATE ZLIB::ZLIB)
