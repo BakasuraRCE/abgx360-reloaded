@@ -7,28 +7,25 @@ extern "C" {
 #include "macros.h"
 
 #include <stdbool.h>   // true/false macro for bools
-
-#include "sha1.h"
-
+#include <stddef.h>    // for offsetof
 
 #ifdef WIN32
-    #include <Windows.h>
-    #include <ntddstor.h> // device i/o stuff
-    #include <ntddscsi.h> // SCSI_PASS_THROUGH_DIRECT
+  #include <Windows.h>
+  #include <ntddstor.h> // device i/o stuff
+  #include <ntddscsi.h> // SCSI_PASS_THROUGH_DIRECT
 
-    char winbuffer[2048];
-    HANDLE hDevice = INVALID_HANDLE_VALUE;
-    #define mkdir(a,b) _mkdir(a)
-    //#define strcasecmp(a,b) _stricmp(a,b)
-    //#define strncasecmp(a,b,c) _strnicmp(a,b,c)
-    //#define fseeko(a,b,c) myfseeko64(a,b,c)
-    //#define ftello(a) ftello64(a)
-    #define DATA_NONE SCSI_IOCTL_DATA_UNSPECIFIED
-    #define DATA_IN   SCSI_IOCTL_DATA_IN
-    #define DATA_OUT  SCSI_IOCTL_DATA_OUT
-    #define LL "I64"
+char winbuffer[2048];
+HANDLE hDevice = INVALID_HANDLE_VALUE;
+#define mkdir(a,b) _mkdir(a)
+//#define strcasecmp(a,b) _stricmp(a,b)
+//#define strncasecmp(a,b,c) _strnicmp(a,b,c)
+//#define fseeko(a,b,c) myfseeko64(a,b,c)
+//#define ftello(a) ftello64(a)
+  #define DATA_NONE SCSI_IOCTL_DATA_UNSPECIFIED
+  #define DATA_IN   SCSI_IOCTL_DATA_IN
+  #define DATA_OUT  SCSI_IOCTL_DATA_OUT
+  #define LL "I64"
 #endif
-
 
 #define PFI_HEX 1
 #define DMI_HEX 2
@@ -56,7 +53,7 @@ extern "C" {
 #define TOP_BIN_FILE            10
 #define TOP_HASH_FILE           11
 
-#define	MAX_FILENAMES 100000
+#define    MAX_FILENAMES 100000
 
 // MAX_DIR_LEVELS * MAX_DIR_SECTORS * 2048 will be the maximum size of fsbuffer during execution
 #define MIN_DIR_SECTORS 20
@@ -121,44 +118,30 @@ unsigned short xgd3_stealth_padding_bitfield = 0xFFFF;
 // local directories
 char homedir[2048];
 #ifdef WIN32
-    const char *abgxdir =        "\\abgx360\\";
-    const char *stealthdir =     "StealthFiles\\";
-    const char *userstealthdir = "UserStealthFiles\\";
-    const char *imagedir =       "Images\\";
+const char *abgxdir =        "\\abgx360\\";
+const char *stealthdir =     "StealthFiles\\";
+const char *userstealthdir = "UserStealthFiles\\";
+const char *imagedir =       "Images\\";
 #else
-    const char *abgxdir =        "/.abgx360/";
-    const char *stealthdir =     "StealthFiles/";
-    const char *userstealthdir = "UserStealthFiles/";
-    const char *imagedir =       "Images/";
+const char *abgxdir = "/.abgx360/";
+const char *stealthdir = "StealthFiles/";
+const char *userstealthdir = "UserStealthFiles/";
+const char *imagedir = "Images/";
 #endif
 
 // load replacements from abgx360.ini if it exists (make sure to update checkini() if these addresses are changed)
-const char *webinidir =            "http://abgx360.hadzz.com/verified/";                       // dir that contains verified ini files
-const char *webunverifiedinidir =  "http://abgx360.hadzz.com/unverified/";                     // dir that contains unverified ini files
-const char *webcsv =               "http://abgx360.hadzz.com/GameNameLookup.csv";              // http path to GameNameLookup.csv
-const char *webdat =               "http://abgx360.hadzz.com/abgx360.dat";                     // http path to abgx360.dat
-const char *webtopology =          "http://abgx360.hadzz.com/topology.php";                    // http path to topology.php
-const char *webstealthdir =        "http://abgx360.hadzz.com/StealthFiles/";                   // dir that contains SS/DMI/PFI/Video stealth files
+const char *webinidir = "http://abgx360.hadzz.com/verified/";                       // dir that contains verified ini files
+const char *webunverifiedinidir = "http://abgx360.hadzz.com/unverified/";                     // dir that contains unverified ini files
+const char *webcsv = "http://abgx360.hadzz.com/GameNameLookup.csv";              // http path to GameNameLookup.csv
+const char *webdat = "http://abgx360.hadzz.com/abgx360.dat";                     // http path to abgx360.dat
+const char *webtopology = "http://abgx360.hadzz.com/topology.php";                    // http path to topology.php
+const char *webstealthdir = "http://abgx360.hadzz.com/StealthFiles/";                   // dir that contains SS/DMI/PFI/Video stealth files
 const char *autouploadwebaddress = "http://abgx360.hadzz.com/Control/AutoUpload.php";          // form for submitting AutoUploads
 
 //char *ap25autouploadwebaddress = "http://abgx360.net/Apps/Control/AP25AutoUpload.php";  // form for submitting AP25 AutoUploads
 //char *webdae = "http://abgx360.net/Apps/Stealth360/dae.bin";                            // http path to dae.bin
 
-struct waveentry {unsigned long crc; uchar sha1[20]; char *description; bool hosted;} waveentry;
-struct waveentry currentpfientries[NUM_CURRENTPFIENTRIES];
-struct waveentry *mostrecentpfientries;
-struct waveentry *datfilepfientries;
-unsigned long num_pfientries;
-struct waveentry currentvideoentries[NUM_CURRENTVIDEOENTRIES];
-struct waveentry *mostrecentvideoentries;
-struct waveentry *datfilevideoentries;
-unsigned long num_videoentries;
-unsigned long xbox1pficrc;
-uchar xbox1pfisha1[20];
-unsigned long xbox1videocrc;
-uchar xbox1videosha1[20];
-
-struct mediaidshort {unsigned char mediaid[4];} mediaidshort;
+struct mediaidshort { unsigned char mediaid[4]; } mediaidshort;
 struct mediaidshort currentap25mediaids[NUM_CURRENTAP25MEDIAIDS];
 struct mediaidshort *mostrecentap25mediaids;
 struct mediaidshort *datfileap25mediaids;
@@ -198,7 +181,7 @@ bool matchonly = false, testing = false, testingdvd = false;
 bool localonly = false, recursesubdirs = false, clobber = false;
 bool showachievements = false, hidesecretachievements = false, showavatarawards = false, unicode = false, imagedirmissing = false;
 bool skiplayerboundaryinfo = false, devkey = false, trustssv2angles = true, useinstalldir = false;
-struct badshit {unsigned char c[21], d[21], data[21]; int count; char* explanation;} badshit;
+struct badshit { unsigned char c[21], d[21], data[21]; int count; char *explanation; } badshit;
 char unrecognizedRTarray[21];
 // don't forget to add new args to the list before stat()
 int truncatearg = 0, userregionarg = 0, folderarg = 0, matcharg = 0, specialarg = 0, readretryarg = 0;
@@ -225,16 +208,15 @@ const char *darkblue = "\033[0;34;40m", *white = "\033[1;37;40m", *arrow = "\033
 const char *wtfhexcolor = "\033[1;31;40m", *wtfcharcolor = "\033[1;37;41m", *reset = "\033[0m", *brown = "\033[0;33;40m", *filename = "\033[0;37;44m";
 const char *blackonyellow = "\033[0;30;43m", *blackonred = "\033[0;30;41m";
 #ifdef __APPLE__
-    const char *hexoffsetcolor = "\033[0;37;40m", *darkgray = "\033[0;37;40m";  // can't do dark gray apparently (shows completely black) so just use normal gray
+const char *hexoffsetcolor = "\033[0;37;40m", *darkgray = "\033[0;37;40m";  // can't do dark gray apparently (shows completely black) so just use normal gray
 #else
-    const char *hexoffsetcolor = "\033[1;30;40m", *darkgray = "\033[1;30;40m";
+const char *hexoffsetcolor = "\033[1;30;40m", *darkgray = "\033[1;30;40m";
 #endif
 const char *newline = "\n", *quotation = "\"", *ampersand = "&", *lessthan = "<", *greaterthan = ">", *numbersign = "#";
 const char *sp0 = "\0", *sp1 = " ", *sp2 = "  ", *sp3 = "   ", *sp4 = "    ", *sp5 = "     ";
 const char *sp6 = "      ", *sp7 = "       ", *sp8 = "        ", *sp9 = "         ";
 const char *sp10 = "          ", *sp11 = "           ", *sp12 = "            ", *sp18 = "                  ";
 const char *sp20 = "                    ", *sp21 = "                     ", *sp28 = "                            ";
-
 
 unsigned long fix_ss_crc32;
 long long fpfilesize;
@@ -266,9 +248,7 @@ unsigned long long video = 0, ss_authored = 0;
 unsigned long game_crc32 = 0, xex_crc32 = 0, ss_crc32 = 0, ss_rawcrc32 = 0, ss_staticcrc32 = 0, dmi_crc32 = 0, pfi_crc32 = 0;
 unsigned int ss_num_angles, ss_num_targets, ss_angleaddresses[4], ss_targets[4];
 unsigned long video_crc32 = 0, videoL0_crc32 = 0, videoL1_crc32 = 0;
-//uchar xex_sha1[20] = {0};
-uchar pfi_sha1[20] = {0};
-//video_sha1[20] = {0};
+
 int ini_dmi_count = 0;
 unsigned long ini_ss = 0, ini_pfi = 0, ini_video = 0, ini_rawss = 0, ini_v0 = 0, ini_v1 = 0, ini_game = 0, ini_xexhash = 0;
 unsigned long ini_dmi[30] = {0};
