@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
+if(WIN32)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(target abgx360)
 project(${target})
 
@@ -28,7 +32,8 @@ add_executable(${target}
         src/mspack/lzxd.c
         src/mspack/mspack.h
         src/mspack/system.c
-        src/mspack/system.h)
+        src/mspack/system.h
+        abgx360.rc)
 if (UNIX)
     target_link_libraries(${target} PRIVATE m)
 endif ()

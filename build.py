@@ -10,13 +10,14 @@ else:
     print('Elevated privilege acquired')
 
 subprocess.run([
-    'cmake', '-G', 'Visual Studio 17 2022', '-A', 'Win32',
+    'cmake', '-G', 'Visual Studio 17 2022', '-A', 'x64',
     '-DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake',
-    '-S', '.', '-B', 'build-Win32'
+    '-DVCPKG_TARGET_TRIPLET=x64-windows-static',
+    '-S', '.', '-B', 'build-x64'
     ], shell=True, check=True)
 
 
 subprocess.run([
-    'cmake', '--build', 'build-Win32',
+    'cmake', '--build', 'build-x64',
     '--config', 'Release'
     ], shell=True, check=True)
